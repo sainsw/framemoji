@@ -1,6 +1,6 @@
 export type Puzzle = {
   id: string;
-  clues: string[]; // exactly 10 emojis, vague -> obvious
+  clues: string[]; // exactly 10 emoji, vague -> obvious
   answer: string;
   year?: number;
 };

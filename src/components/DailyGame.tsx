@@ -159,13 +159,13 @@ export default function DailyGame() {
           revealed: resp.revealed,
           score: resp.score,
           percentile: fin.percentile,
-          id: meta.puzzle.id,
+          id: String(meta.puzzle.id),
         });
       }
       setStatus("finished");
     } else {
       setStatus("wrong");
-      const wasAtTen = reveal >= 10; // had all 10 emojis before this guess
+      const wasAtTen = reveal >= 10; // had all 10 emoji before this guess
       setReveal(resp.revealed);
       if (wasAtTen) {
         // Already at 10 and guessed wrong again → finish as fail
@@ -185,7 +185,7 @@ export default function DailyGame() {
             revealed: resp.revealed,
             score: 0,
             percentile: fin.percentile,
-            id: meta.puzzle.id,
+            id: String(meta.puzzle.id),
             answer: fin.answer ?? undefined,
           });
         }
@@ -268,7 +268,7 @@ export default function DailyGame() {
               aria-controls="suggestions-list"
               aria-activedescendant={suggestions.length > 0 ? `suggestion-${selectedIdx}` : undefined}
             />
-            <button onClick={submit} aria-label="Submit guess">Guess</button>
+            <button onClick={() => void submit()} aria-label="Submit guess">Guess</button>
           </div>
           {suggestions.length > 0 && (
             <div className="card suggestions" id="suggestions-list" role="listbox" style={{ marginTop: "0.5rem" }}>
@@ -413,7 +413,7 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
           return (
             <div
               key={i}
-              aria-label={`Solved at ${i+1} emojis: ${c}`}
+              aria-label={`Solved at ${i+1} emoji: ${c}`}
               className={`bar${isMe ? ' me' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: isSelected ? '3px solid #ffffff' : (isMe ? '3px solid var(--success)' : '1px solid rgba(255,255,255,0.08)'), borderRadius: 8, position: 'relative', height: '100%', cursor: onSelect ? 'pointer' : 'default' }}
               onClick={() => onSelect?.(i + 1)}
