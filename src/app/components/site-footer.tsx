@@ -16,10 +16,10 @@ export default function SiteFooter() {
               <div style={{ width: '100%' }}>
                 <a
                   className="footer-avatar-link"
-                  href="https://linkedin.com/in/samainsworth"
+                  href="https://ainsworth.dev"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="find me on linkedin"
+                  aria-label="go to my personal website"
                   style={{ display: 'block', marginBottom: 40, maxWidth: 'max-content' }}
                 >
                   <PrideAvatar>
