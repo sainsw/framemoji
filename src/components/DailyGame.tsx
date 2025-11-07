@@ -470,58 +470,67 @@ export default function DailyGame() {
             })()}
           </div>
           {hist ? (
-            <div style={{ marginTop: "1.25rem" }}>
-              <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Today's distribution</div>
-              <HistogramView
-                histogram={hist}
-                myReveal={reveal}
-                failed={!!answer}
-                labels={clues}
-                selectedReveal={selectedReveal ?? undefined}
-                onSelect={(r) => openReveal(r)}
-              />
-              {selectedReveal === 0 && hist && (
-                <div style={{ marginTop: "1rem" }}>
-                  <div style={{ fontWeight: 600, marginBottom: 10 }}>❌ Failures</div>
-                  <div style={{ fontSize: 14, opacity: 0.95 }}>{hist.fail} players failed today.</div>
-                </div>
-              )}
-              {(selectedReveal !== null && selectedReveal !== 0 && topGuesses && topGuesses.length > 0) && (
-                <div style={{ marginTop: "1rem" }}>
-                  <div style={{ fontWeight: 600, marginBottom: 10, lineHeight: '1.2', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>Popular guesses at</span>
-                    {selectedEmoji ? (
-                      <span className="emoji-inline" aria-hidden="true">{selectedEmoji}</span>
-                    ) : (
-                      <span>{selectedReveal}</span>
-                    )}
+            (() => {
+              const total = hist.solves.reduce((a, b) => a + b, 0) + hist.fail;
+              if (total === 0) {
+                return (
+                  <div style={{ marginTop: "1.25rem" }}>
+                    <div className="status" style={{ opacity: 0.85 }}>Stats unavailable right now</div>
                   </div>
-                  {(() => {
-                    const items = topGuesses.slice(0, 10);
-                    const max = Math.max(1, ...items.map((g) => g.count));
-                    return items.map((g, i) => {
-                      const match = movies.find((m) => normalizeTitle(m.title) === g.key);
-                      const label = match ? `${match.title}${match.year ? ` (${match.year})` : ''}` : g.key;
-                      const pct = Math.round((g.count / max) * 100);
-                      return (
-                        <div key={g.key + i} style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 6 }}>{i + 1}. {label}</div>
-                          <div aria-label={`${g.count} guesses`} style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>
-                            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 6, opacity: 0.85 }} />
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
+                );
+              }
+              return (
+                <div style={{ marginTop: "1.25rem" }}>
+                  <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Today's distribution</div>
+                  <HistogramView
+                    histogram={hist}
+                    myReveal={reveal}
+                    failed={!!answer}
+                    labels={clues}
+                    selectedReveal={selectedReveal ?? undefined}
+                    onSelect={(r) => openReveal(r)}
+                  />
+                  {selectedReveal === 0 && hist && (
+                    <div style={{ marginTop: "1rem" }}>
+                      <div style={{ fontWeight: 600, marginBottom: 10 }}>❌ Failures</div>
+                      <div style={{ fontSize: 14, opacity: 0.95 }}>{hist.fail} players failed today.</div>
+                    </div>
+                  )}
+                  {(selectedReveal !== null && selectedReveal !== 0 && topGuesses && topGuesses.length > 0) && (
+                    <div style={{ marginTop: "1rem" }}>
+                      <div style={{ fontWeight: 600, marginBottom: 10, lineHeight: '1.2', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>Popular guesses at</span>
+                        {selectedEmoji ? (
+                          <span className="emoji-inline" aria-hidden="true">{selectedEmoji}</span>
+                        ) : (
+                          <span>{selectedReveal}</span>
+                        )}
+                      </div>
+                      {(() => {
+                        const items = topGuesses.slice(0, 10);
+                        const max = Math.max(1, ...items.map((g) => g.count));
+                        return items.map((g, i) => {
+                          const match = movies.find((m) => normalizeTitle(m.title) === g.key);
+                          const label = match ? `${match.title}${match.year ? ` (${match.year})` : ''}` : g.key;
+                          const pct = Math.round((g.count / max) * 100);
+                          return (
+                            <div key={g.key + i} style={{ marginBottom: 12 }}>
+                              <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 6 }}>{i + 1}. {label}</div>
+                              <div aria-label={`${g.count} guesses`} style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 6, opacity: 0.85 }} />
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
+                  <div style={{ opacity: 0.8, marginTop: "0.75rem" }}>
+                    {`Players today: ${total}`}
+                  </div>
                 </div>
-              )}
-              <div style={{ opacity: 0.8, marginTop: "0.75rem" }}>
-                {(() => {
-                  const total = hist.solves.reduce((a, b) => a + b, 0) + hist.fail;
-                  return `Players today: ${total}`;
-                })()}
-              </div>
-            </div>
+              );
+            })()
           ) : (
             // Histogram skeleton placeholder to prevent layout shift
             <div style={{ marginTop: "1.25rem" }}>
