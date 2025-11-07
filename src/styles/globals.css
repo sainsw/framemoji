@@ -180,3 +180,30 @@ button.secondary { background: #2a2f3a; }
 .skeleton-line { height: 14px; border-radius: 6px; }
 .skeleton-line.lg { height: 18px; }
 .skeleton-line.sm { height: 10px; }
+
+/* Histogram layout (responsive) */
+.hist {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 10px;
+  align-items: end;
+  height: 170px;
+}
+.hist-labels {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.hist-labels > div {
+  text-align: center;
+  font-size: 28px;
+  line-height: 1.1;
+  opacity: 0.98;
+}
+
+@media (max-width: 480px) {
+  .hist { gap: 4px; height: 120px; }
+  .hist-labels { gap: 4px; }
+  .hist-labels > div { font-size: 18px; }
+}

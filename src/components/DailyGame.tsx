@@ -583,7 +583,7 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
   const max = Math.max(1, ...histogram.solves, histogram.fail);
   return (
     <div>
-      <div className="hist" style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: '10px', alignItems: 'end', height: 170 }}>
+      <div className="hist">
         {histogram.solves.map((c, i) => {
           const h = Math.round((c / max) * 100);
           const isMe = !failed && (myReveal - 1 === i);
@@ -635,13 +635,13 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
           );
         })()}
       </div>
-      <div className="hist-labels" style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: '10px', marginTop: 10 }}>
+      <div className="hist-labels">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} style={{ textAlign: 'center', fontSize: 36, lineHeight: '1.1', opacity: 0.98 }}>
+          <div key={i}>
             {labels?.[i] ?? (i + 1)}
           </div>
         ))}
-        <div style={{ textAlign: 'center', fontSize: 36, lineHeight: '1.1', opacity: 0.98 }}>❌</div>
+        <div>❌</div>
       </div>
     </div>
   );
