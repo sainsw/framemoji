@@ -4,6 +4,9 @@ export type DailyResult = {
   score: number; // 10..1 on success, 0 on fail
   percentile?: number; // optional if not computed yet
   answer?: string; // present if failed
+  // On success, store the winning title locally so we can
+  // render it (and the poster) on refresh without server reveal.
+  title?: string;
   id?: string; // optional puzzle id
 };
 

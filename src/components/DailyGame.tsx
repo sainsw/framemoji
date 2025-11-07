@@ -128,6 +128,11 @@ export default function DailyGame() {
           setScore(existing.score);
           setPercentile(existing.percentile ?? null);
           setAnswer(existing.answer ?? null);
+          // If previously won, use stored title so we can
+          // show the answer and poster on reload.
+          if (existing.correct && existing.title) {
+            setFinalTitle(existing.title);
+          }
           setStatus("finished");
           // Load today's histogram so the chart renders on refresh
           fetch('/api/daily/finish')
@@ -218,6 +223,7 @@ export default function DailyGame() {
           revealed: resp.revealed,
           score: resp.score,
           percentile: fin.percentile,
+          title: toSend,
           id: String(meta.puzzle.id),
         });
       }
