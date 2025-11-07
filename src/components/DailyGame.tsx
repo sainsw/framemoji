@@ -284,13 +284,19 @@ export default function DailyGame() {
   return (
     <section className="card">
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <div className="status">Daily — {meta?.day ?? "…"} (UTC)</div>
-        <div className="status" suppressHydrationWarning>
-          Streak: {mounted && stats ? stats.currentStreak : "—"} • Best score: {mounted && stats ? (stats.bestScore ?? 0) : "—"}
-          {mounted && stats && (stats.bestStreak ?? 0) > 0 && stats.bestStreak !== stats.currentStreak
-            ? ` • Best streak: ${stats.bestStreak}`
-            : ""}
-        </div>
+        <div className="status">Daily — {meta?.day ?? "…"}</div>
+        {(() => {
+          const cur = mounted && stats ? (stats.currentStreak ?? 0) : 0;
+          const best = mounted && stats ? (stats.bestScore ?? 0) : 0;
+          const bestStreak = mounted && stats ? (stats.bestStreak ?? 0) : 0;
+          const parts: string[] = [];
+          if (cur > 0) parts.push(`Streak: ${cur}`);
+          if (best > 0) parts.push(`Best score: ${best}`);
+          if (bestStreak > 0 && stats && bestStreak !== (stats.currentStreak ?? 0)) parts.push(`Best streak: ${bestStreak}`);
+          return parts.length > 0 ? (
+            <div className="status" suppressHydrationWarning>{parts.join(" • ")}</div>
+          ) : null;
+        })()}
       </div>
       <div className="spacer" />
 
