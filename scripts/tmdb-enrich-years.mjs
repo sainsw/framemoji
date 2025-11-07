@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Enrich movies.json by filling missing years via TMDB /movie/{id}
+// Enrich movies.json by filling missing years and poster paths via TMDB /movie/{id}
 import path from 'node:path';
 import https from 'node:https';
 import { ensureDirs, readJSON, writeJSON, MOVIES_JSON, VAR_DIR, loadEnv } from './tmdb-utils.mjs';
@@ -39,28 +39,29 @@ function parseYear(release_date) {
   return m ? Number(m[1]) : undefined;
 }
 
-async function getDetailsYear(id) {
+async function getDetails(id) {
   const url = buildUrl(`/movie/${id}`);
   const d = await fetchJSON(url);
-  return parseYear(d.release_date);
+  return { year: parseYear(d.release_date), poster_path: d.poster_path || null };
 }
 
 async function main() {
   await ensureDirs();
-  const metaPath = path.join(VAR_DIR, 'enrich_years.json');
+  const metaPath = path.join(VAR_DIR, 'enrich_details.json');
   const meta = await readJSON(metaPath, {});
-  const LIMIT = Number(process.env.TMDB_ENRICH_LIMIT || 10000);
+  const LIMIT = Number(process.env.TMDB_ENRICH_LIMIT || 1000);
   const CONC = Number(process.env.TMDB_CONCURRENCY || 8);
 
   const list = await readJSON(MOVIES_JSON, []);
-  const targets = list.filter(m => m.year == null).slice(0, LIMIT);
-  console.log(`Enriching years for ${targets.length} titles (limit ${LIMIT}, conc ${CONC})`);
+  // Target items missing year or poster_path
+  const targets = list.filter(m => m.year == null || m.poster_path == null).slice(0, LIMIT);
+  console.log(`Enriching details for ${targets.length} titles (limit ${LIMIT}, conc ${CONC})`);
   if (targets.length === 0) {
-    console.log('No titles missing year. Nothing to do.');
+    console.log('No titles missing year or poster. Nothing to do.');
     process.exit(0);
   }
 
-  let idx = 0; let done = 0; let updated = 0; let failed = 0;
+  let idx = 0; let done = 0; let updatedYear = 0; let updatedPoster = 0; let failed = 0;
   function nextIndex() { const i = idx; idx += 1; return i; }
 
   async function worker() {
@@ -69,8 +70,9 @@ async function main() {
       if (i >= targets.length) break;
       const t = targets[i];
       try {
-        const year = await getDetailsYear(t.id);
-        if (year) { t.year = year; updated += 1; }
+        const info = await getDetails(t.id);
+        if (info.year && !t.year) { t.year = info.year; updatedYear += 1; }
+        if (info.poster_path && !t.poster_path) { t.poster_path = info.poster_path; updatedPoster += 1; }
       } catch (e) {
         failed += 1;
       } finally { done += 1; if (done % 50 === 0) console.log(`.. ${done}/${targets.length}`); }
@@ -84,11 +86,14 @@ async function main() {
   const byId = new Map(list.map(m => [String(m.id), m]));
   for (const t of targets) {
     const m = byId.get(String(t.id));
-    if (m && t.year) m.year = t.year;
+    if (m) {
+      if (t.year) m.year = t.year;
+      if (t.poster_path) m.poster_path = t.poster_path;
+    }
   }
   await writeJSON(MOVIES_JSON, Array.from(byId.values()));
-  await writeJSON(metaPath, { updated, failed, at: new Date().toISOString() });
-  console.log(`Updated years: ${updated}, failed: ${failed}`);
+  await writeJSON(metaPath, { updatedYear, updatedPoster, failed, at: new Date().toISOString() });
+  console.log(`Updated years: ${updatedYear}, posters: ${updatedPoster}, failed: ${failed}`);
 }
 
 main().catch((e) => { console.error(e.message || e); process.exit(1); });

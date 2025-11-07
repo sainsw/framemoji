@@ -40,7 +40,8 @@ async function main() {
       const year = parseYear(obj.release_date);
       const adult = !!obj.adult;
       const popularity = Number(obj.popularity) || 0;
-      additions.push({ id, title, year, adult, popularity });
+      const poster_path = obj.poster_path || null;
+      additions.push({ id, title, year, adult, popularity, poster_path });
     } catch {
       // ignore bad lines
     }
@@ -63,7 +64,7 @@ async function main() {
     .filter(m => (REQUIRE_YEAR ? !!m.year : true))
     .sort((a,b)=> (b.popularity - a.popularity) || (a.title||'').localeCompare(b.title||''))
     .slice(0, MAX_COUNT)
-    .map(({id,title,year,popularity}) => ({ id, title, year, popularity }));
+    .map(({id,title,year,popularity,poster_path}) => ({ id, title, year, popularity, poster_path }));
 
   const OVERWRITE = /^(1|true|yes)$/i.test(process.env.TMDB_OVERWRITE || '');
   const withYear = filtered.filter(m => m.year != null).length;

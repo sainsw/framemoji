@@ -4,15 +4,15 @@ import path from "path";
 import { loadPuzzles } from "@/server/puzzles";
 import { normalizeTitle } from "@/lib/normalize";
 
-type Movie = { id: string | number; title: string; year?: number; popularity?: number };
+type Movie = { id: string | number; title: string; year?: number; popularity?: number; poster_path?: string };
 
 async function loadPublicList(): Promise<Movie[]> {
   try {
     const p = path.join(process.cwd(), "public", "data", "movies.json");
     const raw = await readFile(p, "utf8");
-    const data = JSON.parse(raw) as Array<{ id: number; title: string; year?: number; popularity?: number }>;
-    // Ensure numeric popularity if present
-    return data.map(m => ({ ...m, popularity: m.popularity != null ? Number(m.popularity) : undefined }));
+    const data = JSON.parse(raw) as Array<{ id: number; title: string; year?: number; popularity?: number; poster_path?: string }>;
+    // Ensure numeric popularity if present; pass through poster_path
+    return data.map(m => ({ ...m, popularity: m.popularity != null ? Number(m.popularity) : undefined, poster_path: m.poster_path }));
   } catch {
     return [];
   }

@@ -18,7 +18,7 @@ type GuessResp = { correct: boolean; revealed: number; score: number };
 type Histogram = { solves: number[]; fail: number };
 type FinishResp = { percentile: number; total: number; histogram: Histogram; answer?: string; id: number };
 
-type Movie = { id: number; title: string; year?: number; popularity?: number };
+type Movie = { id: number; title: string; year?: number; popularity?: number; poster_path?: string | null };
 
 function useMovies() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -64,6 +64,55 @@ export default function DailyGame() {
   const [wrongMsg, setWrongMsg] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const movies = useMovies();
+  const [finalTitle, setFinalTitle] = useState<string | null>(null);
+  const solutionTitle = useMemo(() => {
+    const title = finalTitle ?? answer ?? meta?.answer ?? null;
+    if (!title) return null;
+    // Try to resolve year from TMDB list; fallback to puzzle year
+    const norm = normalizeTitle(title);
+    const cands = movies.filter((m) => typeof m.id === 'number' && normalizeTitle(m.title) === norm);
+    const y = (() => {
+      if (cands.length > 0) {
+        const targetYear = meta?.puzzle.year;
+        const best = cands.slice().sort((a, b) => {
+          const da = targetYear && a.year ? Math.abs(a.year - targetYear) : 9999;
+          const db = targetYear && b.year ? Math.abs(b.year - targetYear) : 9999;
+          if (da !== db) return da - db;
+          return (Number(b.popularity || 0) - Number(a.popularity || 0));
+        })[0];
+        if (best?.year) return best.year;
+      }
+      return meta?.puzzle.year;
+    })();
+    return `${title}${y ? ` (${y})` : ''}`;
+  }, [movies, meta, finalTitle, answer]);
+
+  // Resolve poster path by matching the final or revealed title to TMDB list
+  const posterUrl = useMemo(() => {
+    const base = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE;
+    if (!base) return null;
+    const title = finalTitle ?? answer ?? meta?.answer ?? null;
+    if (!title) return null;
+    const norm = normalizeTitle(title);
+    const y = meta?.puzzle.year;
+    const cands = movies.filter((m) => normalizeTitle(m.title) === norm);
+    if (cands.length === 0) return null;
+    cands.sort((a, b) => {
+      // Prefer entries with poster_path
+      const hasPosterA = a.poster_path ? 1 : 0;
+      const hasPosterB = b.poster_path ? 1 : 0;
+      if (hasPosterA !== hasPosterB) return hasPosterB - hasPosterA;
+      // Then prefer year closeness
+      const da = y && a.year ? Math.abs(a.year - y) : 9999;
+      const db = y && b.year ? Math.abs(b.year - y) : 9999;
+      if (da !== db) return da - db;
+      // Tiebreaker by popularity desc
+      return (Number(b.popularity || 0) - Number(a.popularity || 0));
+    });
+    const best = cands[0];
+    if (!best?.poster_path) return null;
+    return `${base}${best.poster_path}`;
+  }, [movies, meta, finalTitle, answer]);
 
   useEffect(() => {
     setMounted(true);
@@ -151,6 +200,7 @@ export default function DailyGame() {
     }).then((r) => r.json()) as GuessResp;
     if (resp.correct) {
       setStatus("correct");
+      setFinalTitle(toSend);
       setScore(resp.score);
       setReveal(resp.revealed);
       recordWin(resp.score);
@@ -174,6 +224,7 @@ export default function DailyGame() {
       setStatus("finished");
     } else {
       setStatus("wrong");
+      setFinalTitle(null);
       // Pick a snarky, accessible message for wrong guesses
       const WRONG_MESSAGES = [
         "Close, but no cigar. Another emoji joins the chat.",
@@ -353,27 +404,43 @@ export default function DailyGame() {
 
       {status === "finished" && (
         <div className="card" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
-          {answer ? (
-            <>
-              <div className="status" aria-hidden="true">Answer: {answer}</div>
-              <div className="sr-only" aria-live="assertive" aria-atomic="true">Answer: {answer}</div>
-            </>
-          ) : (
-            <>
-              <div className="status success" aria-hidden="true">Correct!</div>
-              <div className="sr-only" aria-live="assertive" aria-atomic="true">Correct!</div>
-            </>
-          )}
-          <div style={{ marginTop: "0.875rem" }}>
-            {percentile !== null ? `You're better than ${percentile}% of players today.` : ""}
-          </div>
-          {hist && answer && (
-            <div style={{ marginTop: "0.875rem", opacity: 0.85 }}>
-              {`You're not alone — ❌ ${hist.fail} failed today.`}
+          <div className="row" style={{ alignItems: 'flex-start', gap: '1rem' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {answer ? (
+                <>
+                  <div className="status" aria-hidden="true">Answer: {solutionTitle ?? answer}</div>
+                  <div className="sr-only" aria-live="assertive" aria-atomic="true">Answer: {solutionTitle ?? answer}</div>
+                </>
+              ) : (
+                <>
+                  <div className="status success" aria-hidden="true">Correct!</div>
+                  <div className="sr-only" aria-live="assertive" aria-atomic="true">Correct!</div>
+                  {solutionTitle && (
+                    <>
+                      <div className="status" aria-hidden="true" style={{ marginTop: '0.5rem' }}>Today's answer: {solutionTitle}</div>
+                      <div className="sr-only" aria-live="polite" aria-atomic="true">Today's answer: {solutionTitle}</div>
+                    </>
+                  )}
+                </>
+              )}
+              <div style={{ marginTop: "0.875rem" }}>
+                {percentile !== null ? `You're better than ${percentile}% of players today.` : ""}
+              </div>
+              {hist && answer && (
+                <div style={{ marginTop: "0.875rem", opacity: 0.85 }}>
+                  {`You're not alone — ❌ ${hist.fail} failed today.`}
+                </div>
+              )}
+              <div style={{ marginTop: "0.875rem", opacity: 0.8 }}>
+                Score: {score ?? (reveal < 10 ? (11 - reveal) : 0)}
+              </div>
             </div>
-          )}
-          <div style={{ marginTop: "0.875rem", opacity: 0.8 }}>
-            Score: {score ?? (reveal < 10 ? (11 - reveal) : 0)}
+            {posterUrl && (
+              <div aria-hidden="true" style={{ width: 140, flex: '0 0 140px', borderRadius: 8, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }}>
+                {/* Decorative poster image; announce via text elsewhere */}
+                <img src={posterUrl} alt="" style={{ display: 'block', width: '100%', height: 'auto' }} />
+              </div>
+            )}
           </div>
           {hist && (
             <div style={{ marginTop: "1.25rem" }}>

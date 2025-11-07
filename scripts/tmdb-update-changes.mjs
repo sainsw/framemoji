@@ -55,7 +55,7 @@ async function getChanges(since) {
 async function getDetails(id) {
   const url = buildUrl(`/movie/${id}`, { language: 'en-US' });
   const d = await fetchJSON(url);
-  return { id: d.id, title: d.title || d.original_title, year: parseYear(d.release_date), adult: !!d.adult, popularity: Number(d.popularity) || 0 };
+  return { id: d.id, title: d.title || d.original_title, year: parseYear(d.release_date), adult: !!d.adult, popularity: Number(d.popularity) || 0, poster_path: d.poster_path || null };
 }
 
 async function main() {
@@ -79,7 +79,7 @@ async function main() {
     .filter(m => (m.year ? m.year >= MIN_YEAR : true))
     .filter(m => m.popularity >= MIN_POP)
     .filter(m => (LATIN_ONLY ? isLatinTitle(m.title) : true))
-    .map(({id,title,year,popularity}) => ({ id, title, year, popularity }));
+    .map(({id,title,year,popularity,poster_path}) => ({ id, title, year, popularity, poster_path }));
   const existing = await readJSON(MOVIES_JSON, []);
   const existingPruned = existing
     .filter(m => (m.year ? m.year >= MIN_YEAR : true))

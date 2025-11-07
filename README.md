@@ -54,6 +54,7 @@ Each entry in `data/puzzles.json`:
   - If absent, app assumes dev mode: `/api/daily` includes the answer and the UI shows it in a footer to help testing.
 - `TMDB_API_KEY`: required for `npm run tmdb:update` (TMDB API changes endpoint). Optional for `tmdb:build` if the export server requires it.
 - `TMDB_EXPORT_DATE` (optional): override date for `tmdb:build` in `MM_DD_YYYY` format.
+- `NEXT_PUBLIC_TMDB_IMAGE_BASE`: base URL used to build poster image URLs (client-side). Example: `https://image.tmdb.org/t/p/w342`
 
 ## Percentile storage
 
@@ -90,8 +91,9 @@ Each entry in `data/puzzles.json`:
     - Equivalent to: `TMDB_OVERWRITE=1 npm run tmdb:build && npm run tmdb:enrich`
     - Set env filters before running to control size and recency (see above).
   
-- Enrich missing years:
+- Enrich years and posters:
   - `npm run tmdb:enrich` (requires `TMDB_API_KEY`)
-  - Fetches details for titles in `public/data/movies.json` missing `year` and fills it from `release_date`.
-  - Env: `TMDB_ENRICH_LIMIT` (default 10000), `TMDB_CONCURRENCY` (default 8).
+  - Fetches details for titles in `public/data/movies.json` missing `year` or `poster_path` and fills them from TMDB `/movie/{id}`.
+  - Env: `TMDB_ENRICH_LIMIT` (default 1000), `TMDB_CONCURRENCY` (default 8).
   - Note: The TMDB daily export typically does not include `release_date`, so most entries will initially have no `year`. Run the enrich step after building.
+  - The `poster_path` saved is the TMDB path (e.g., `/kqjL17yufvn9OVLyXYpvtyrFfak.jpg`). The app uses `NEXT_PUBLIC_TMDB_IMAGE_BASE + poster_path` to hotlink posters.
