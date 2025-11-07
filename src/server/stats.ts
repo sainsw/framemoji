@@ -6,8 +6,9 @@ export type DailyHistogram = {
   fail: number;
 };
 
-const KV_URL = process.env.KV_REST_API_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN;
+// Support both Vercel KV (KV_*) and Upstash for Redis (UPSTASH_REDIS_REST_*) env vars
+const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const USE_FILE = process.env.EMOVI_USE_FILE_STATS === "1";
 
 function hasKV() {
@@ -101,4 +102,3 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
     return [] as { key: string; count: number }[];
   }
 }
-
