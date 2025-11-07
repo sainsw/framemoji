@@ -25,6 +25,14 @@ body {
 /* Let main content grow to push footer to the bottom */
 #main { flex: 1 0 auto; }
 
+/* Footer responsive centering to match ainsworth.dev */
+@media (min-width: 768px) {
+  .footer-avatar-link {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
 img, svg, video { max-width: 100%; height: auto; }
 
 /* Respect reduced motion preferences */
