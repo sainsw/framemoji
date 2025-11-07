@@ -1,0 +1,441 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { recordLoss, recordWin, loadStats, resetLocalStats, type DailyStats } from "@/lib/stats";
+import { splitGraphemes } from "@/lib/emoji";
+import { getDailyResult, setDailyResult, clearAllDailyResults } from "@/lib/result";
+import { msUntilNextUtcMidnight } from "@/lib/date";
+import { normalizeTitle } from "@/lib/normalize";
+
+type DailyMeta = {
+  day: string;
+  puzzle: { id: number; year?: number; emoji_clues: string[] };
+  answer?: string; // present in dev mode
+  dev?: boolean;
+};
+
+type GuessResp = { correct: boolean; revealed: number; score: number };
+type Histogram = { solves: number[]; fail: number };
+type FinishResp = { percentile: number; total: number; histogram: Histogram; answer?: string; id: number };
+
+type Movie = { id: number; title: string; year?: number; popularity?: number };
+
+function useMovies() {
+  const [movies, setMovies] = useState<Movie[]>([]);
+  useEffect(() => {
+    fetch("/api/movies")
+      .then((r) => r.json())
+      .then((d) => setMovies(d))
+      .catch(() => setMovies([]));
+  }, []);
+  return movies;
+}
+
+function filterSuggestions(movies: Movie[], q: string) {
+  const n = normalizeTitle(q || "");
+  if (!n) return [] as Movie[];
+  const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Match only at word boundaries (start of string or after a space)
+  const re = new RegExp(`(?:^|\u0020)${escaped}`); // \u0020 = space
+  let filtered = movies.filter((m) => re.test(normalizeTitle(m.title)));
+  if (filtered.length === 0) {
+    filtered = movies.filter((m) => normalizeTitle(m.title).includes(n));
+  }
+  filtered.sort((a, b) => (Number(b.popularity || 0) - Number(a.popularity || 0)) || (a.title || '').localeCompare(b.title || ''));
+  return filtered.slice(0, 8);
+}
+
+export default function DailyGame() {
+  const [meta, setMeta] = useState<DailyMeta | null>(null);
+  const [reveal, setReveal] = useState(1);
+  const [guess, setGuess] = useState("");
+  const [status, setStatus] = useState<"idle" | "correct" | "wrong" | "finished">("idle");
+  const [score, setScore] = useState<number | null>(null);
+  const [percentile, setPercentile] = useState<number | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [hist, setHist] = useState<Histogram | null>(null);
+  const [selectedReveal, setSelectedReveal] = useState<number | null>(null);
+  const [topGuesses, setTopGuesses] = useState<Array<{ key: string; count: number }> | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [stats, setStats] = useState<DailyStats | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number>(0);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const movies = useMovies();
+
+  useEffect(() => {
+    setMounted(true);
+    setStats(loadStats());
+    fetch("/api/daily")
+      .then((r) => r.json())
+      .then((d: DailyMeta) => {
+        setMeta(d);
+        // If user already finished today, show the stored result immediately
+        const existing = getDailyResult(d.day);
+        if (existing) {
+          setReveal(existing.revealed);
+          setScore(existing.score);
+          setPercentile(existing.percentile ?? null);
+          setAnswer(existing.answer ?? null);
+          setStatus("finished");
+          // Load today's histogram so the chart renders on refresh
+          fetch('/api/daily/finish')
+            .then((r) => r.json())
+            .then((data: { total: number; histogram: Histogram }) => {
+              setHist(data.histogram);
+              openReveal(existing.correct ? existing.revealed : 10);
+            })
+            .catch(() => {
+              openReveal(existing.correct ? existing.revealed : 10);
+            });
+        } else {
+          setReveal(1);
+          setStatus("idle");
+          setScore(null);
+          setPercentile(null);
+          setAnswer(null);
+        }
+        // focus input on load
+        setTimeout(() => inputRef.current?.focus(), 0);
+      });
+  }, []);
+
+  // Tick countdown to next UTC midnight when finished
+  useEffect(() => {
+    if (status !== "finished") return;
+    const update = () => setRemainingMs(msUntilNextUtcMidnight());
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [status]);
+
+  const clues = useMemo(() => meta?.puzzle.emoji_clues ?? [], [meta]);
+  const shown = useMemo(() => clues.slice(0, reveal).join(""), [clues, reveal]);
+  const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
+  const selectedEmoji = useMemo(() => (selectedReveal ? clues[selectedReveal - 1] : undefined), [selectedReveal, clues]);
+  function openReveal(rev: number) {
+    const r = Math.max(1, Math.min(rev, 10));
+    setSelectedReveal(r);
+    if (r === 10) {
+      // Fail bucket: show fail count instead of guesses
+      setTopGuesses(null);
+      return;
+    }
+    fetch(`/api/daily/guesses?reveal=${r}&limit=10`)
+      .then((res) => res.json())
+      .then((data: { reveal: number; items: { key: string; count: number }[] }) => setTopGuesses(data.items))
+      .catch(() => setTopGuesses(null));
+  }
+
+  useEffect(() => {
+    // reset active suggestion to top when query changes
+    setSelectedIdx(0);
+  }, [guess]);
+
+  async function submit(forcedTitle?: string) {
+    const toSend = (forcedTitle ?? guess).trim();
+    if (!toSend) return;
+    const resp = await fetch("/api/daily/guess", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guess: toSend, revealed: reveal }),
+    }).then((r) => r.json()) as GuessResp;
+    if (resp.correct) {
+      setStatus("correct");
+      setScore(resp.score);
+      setReveal(resp.revealed);
+      recordWin(resp.score);
+      const fin = await fetch("/api/daily/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revealed: resp.revealed, correct: true }),
+      }).then((r) => r.json()) as FinishResp;
+      setPercentile(fin.percentile);
+      setHist(fin.histogram);
+      openReveal(resp.revealed);
+      if (meta) {
+        setDailyResult(meta.day, {
+          correct: true,
+          revealed: resp.revealed,
+          score: resp.score,
+          percentile: fin.percentile,
+          id: meta.puzzle.id,
+        });
+      }
+      setStatus("finished");
+    } else {
+      setStatus("wrong");
+      const wasAtTen = reveal >= 10; // had all 10 emojis before this guess
+      setReveal(resp.revealed);
+      if (wasAtTen) {
+        // Already at 10 and guessed wrong again → finish as fail
+        recordLoss();
+        const fin = await fetch("/api/daily/finish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ revealed: resp.revealed, correct: false }),
+        }).then((r) => r.json()) as FinishResp;
+        setAnswer(fin.answer ?? null);
+        setPercentile(fin.percentile);
+        setHist(fin.histogram);
+        openReveal(10);
+        if (meta) {
+          setDailyResult(meta.day, {
+            correct: false,
+            revealed: resp.revealed,
+            score: 0,
+            percentile: fin.percentile,
+            id: meta.puzzle.id,
+            answer: fin.answer ?? undefined,
+          });
+        }
+        setStatus("finished");
+      }
+    }
+    setGuess("");
+  }
+
+
+  return (
+    <section className="card">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <div className="status">Daily — {meta?.day ?? "…"} (UTC)</div>
+        <div className="status" suppressHydrationWarning>
+          Streak: {mounted && stats ? stats.currentStreak : "—"} • Best score: {mounted && stats ? (stats.bestScore ?? 0) : "—"}
+          {mounted && stats && (stats.bestStreak ?? 0) > 0 && stats.bestStreak !== stats.currentStreak
+            ? ` • Best streak: ${stats.bestStreak}`
+            : ""}
+        </div>
+      </div>
+      <div className="spacer" />
+
+      {status !== "finished" && (
+        <>
+          {(() => {
+            const cols = reveal <= 5 ? 5 : Math.min(reveal, 10);
+            return (
+              <div
+                className="emoji-row"
+                aria-live="polite"
+                style={{ ['--cols' as any]: cols }}
+              >
+                {Array.from({ length: cols }).map((_, i) => (
+                  <div className="emoji-cell" key={i}>
+                    {i < reveal ? clues[i] : ""}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          <p style={{ marginTop: "0.5rem" }}>Reveal: {reveal}/10</p>
+        </>
+      )}
+
+      {status !== "finished" && (
+        <>
+          <div className="row">
+            <input
+              type="text"
+              placeholder="Type a movie title…"
+              value={guess}
+              onChange={(e) => setGuess(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const choice = suggestions[selectedIdx]?.title || guess;
+                  submit(choice);
+                } else if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  if (suggestions.length > 0) {
+                    setSelectedIdx((i) => (i + 1) % suggestions.length);
+                  }
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  if (suggestions.length > 0) {
+                    setSelectedIdx((i) => (i - 1 + suggestions.length) % suggestions.length);
+                  }
+                }
+              }}
+              aria-label="Guess the movie"
+              autoFocus
+              ref={inputRef}
+              role="combobox"
+              aria-expanded={suggestions.length > 0}
+              aria-controls="suggestions-list"
+              aria-activedescendant={suggestions.length > 0 ? `suggestion-${selectedIdx}` : undefined}
+            />
+            <button onClick={submit} aria-label="Submit guess">Guess</button>
+          </div>
+          {suggestions.length > 0 && (
+            <div className="card suggestions" id="suggestions-list" role="listbox" style={{ marginTop: "0.5rem" }}>
+              {suggestions.map((m, i) => (
+                <div
+                  key={m.id}
+                  id={`suggestion-${i}`}
+                  className={`suggestion${i === selectedIdx ? " active" : ""}`}
+                  role="option"
+                  aria-selected={i === selectedIdx}
+                  onMouseEnter={() => setSelectedIdx(i)}
+                  onClick={() => submit(m.title)}
+                >
+                  {m.title} {m.year ? `(${m.year})` : ""}
+                </div>
+              ))}
+            </div>
+          )}
+          {status === "wrong" && (
+            <div className="status error" role="status">Wrong — another emoji revealed.</div>
+          )}
+        </>
+      )}
+
+      {status === "finished" && (
+        <div className="card" style={{ marginTop: "1.25rem" }}>
+          {answer ? (
+            <div className="status">Answer: {answer}</div>
+          ) : (
+            <div className="status success">Correct!</div>
+          )}
+          <div style={{ marginTop: "0.875rem" }}>
+            {percentile !== null ? `You're better than ${percentile}% of players today.` : ""}
+          </div>
+          {hist && answer && (
+            <div style={{ marginTop: "0.875rem", opacity: 0.85 }}>
+              {`You're not alone — ❌ ${hist.fail} failed today.`}
+            </div>
+          )}
+          <div style={{ marginTop: "0.875rem", opacity: 0.8 }}>
+            Score: {score ?? (reveal < 10 ? (11 - reveal) : 0)}
+          </div>
+          {hist && (
+            <div style={{ marginTop: "1.25rem" }}>
+              <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Today's distribution</div>
+              <HistogramView
+                histogram={hist}
+                myReveal={reveal}
+                failed={!!answer}
+                labels={clues}
+                selectedReveal={selectedReveal ?? undefined}
+                onSelect={(r) => openReveal(r)}
+              />
+              {selectedReveal === 10 && hist && (
+                <div style={{ marginTop: "1rem" }}>
+                  <div style={{ fontWeight: 600, marginBottom: 10 }}>❌ Failures</div>
+                  <div style={{ fontSize: 14, opacity: 0.95 }}>{hist.fail} players failed today.</div>
+                </div>
+              )}
+              {selectedReveal && selectedReveal !== 10 && topGuesses && topGuesses.length > 0 && (
+                <div style={{ marginTop: "1rem" }}>
+                  <div style={{ fontWeight: 600, marginBottom: 10 }}>Popular guesses at {selectedEmoji ?? selectedReveal}</div>
+                  {(() => {
+                    const items = topGuesses.slice(0, 10);
+                    const max = Math.max(1, ...items.map((g) => g.count));
+                    return items.map((g, i) => {
+                      const match = movies.find((m) => normalizeTitle(m.title) === g.key);
+                      const label = match ? `${match.title}${match.year ? ` (${match.year})` : ''}` : g.key;
+                      const pct = Math.round((g.count / max) * 100);
+                      return (
+                        <div key={g.key + i} style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 6 }}>{i + 1}. {label}</div>
+                          <div aria-label={`${g.count} guesses`} style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 6, opacity: 0.85 }} />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+              <div style={{ opacity: 0.8, marginTop: "0.75rem" }}>
+                {(() => {
+                  const total = hist.solves.reduce((a, b) => a + b, 0) + hist.fail;
+                  return `Players today: ${total}`;
+                })()}
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop: "1.25rem", opacity: 0.8 }} suppressHydrationWarning>
+            {remainingMs !== null ? (
+              (() => {
+                const total = Math.max(0, remainingMs);
+                const h = Math.floor(total / 3600000);
+                const m = Math.floor((total % 3600000) / 60000);
+                const s = Math.floor((total % 60000) / 1000);
+                const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                return `Next game in ${pad(h)}:${pad(m)}:${pad(s)}`;
+              })()
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {meta?.answer && (
+        <footer style={{ marginTop: "0.75rem", opacity: 0.8, fontSize: "0.9rem", display: "flex", gap: "0.75rem", alignItems: "center", justifyContent: "space-between" }}>
+          <span>Dev mode: answer is <strong>{meta.answer}</strong></span>
+          <button
+            className="secondary"
+            onClick={() => {
+              clearAllDailyResults();
+              resetLocalStats();
+              // Simple way to reset component state and refetch
+              window.location.reload();
+            }}
+            aria-label="Clear local Emovi data"
+          >
+            Clear local data
+          </button>
+        </footer>
+      )}
+    </section>
+  );
+}
+
+function HistogramView({ histogram, myReveal, failed, onSelect, labels, selectedReveal }: { histogram: { solves: number[]; fail: number }; myReveal: number; failed: boolean; onSelect?: (reveal: number) => void; labels?: string[]; selectedReveal?: number }) {
+  const max = Math.max(1, ...histogram.solves, histogram.fail);
+  return (
+    <div>
+      <div className="hist" style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: '10px', alignItems: 'end', height: 170 }}>
+        {histogram.solves.map((c, i) => {
+          const h = Math.round((c / max) * 100);
+          const isMe = !failed && (myReveal - 1 === i);
+          const isSelected = selectedReveal === (i + 1);
+          return (
+            <div
+              key={i}
+              aria-label={`Solved at ${i+1} emojis: ${c}`}
+              className={`bar${isMe ? ' me' : ''}`}
+              style={{ background: 'rgba(255,255,255,0.06)', border: isSelected ? '3px solid #ffffff' : (isMe ? '3px solid var(--success)' : '1px solid rgba(255,255,255,0.08)'), borderRadius: 8, position: 'relative', height: '100%', cursor: onSelect ? 'pointer' : 'default' }}
+              onClick={() => onSelect?.(i + 1)}
+            >
+              <div className="fill" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`, background: 'var(--accent)', borderRadius: 6, opacity: 0.8 }} />
+            </div>
+          );
+        })}
+        {(() => {
+          const c = histogram.fail;
+          const h = Math.round((c / max) * 100);
+          const isMe = failed;
+          const isSelected = selectedReveal === 10;
+          return (
+            <div
+              aria-label={`Failed: ${c}`}
+              className={`bar fail${isMe ? ' me' : ''}`}
+              style={{ background: 'rgba(255,255,255,0.06)', border: isSelected ? '3px solid #ffffff' : (isMe ? '3px solid var(--success)' : '1px solid rgba(255,255,255,0.08)'), borderRadius: 8, position: 'relative', height: '100%', cursor: onSelect ? 'pointer' : 'default' }}
+              onClick={() => onSelect?.(10)}
+            >
+              <div className="fill" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`, background: '#666', borderRadius: 6, opacity: 0.8 }} />
+            </div>
+          );
+        })()}
+      </div>
+      <div className="hist-labels" style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: '10px', marginTop: 10 }}>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} style={{ textAlign: 'center', fontSize: 36, lineHeight: '1.1', opacity: 0.98 }}>
+            {labels?.[i] ?? (i + 1)}
+          </div>
+        ))}
+        <div style={{ textAlign: 'center', fontSize: 36, lineHeight: '1.1', opacity: 0.98 }}>❌</div>
+      </div>
+    </div>
+  );
+}

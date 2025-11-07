@@ -1,0 +1,88 @@
+:root {
+  --bg: #0b0c10;
+  --surface: #12141a;
+  --text: #e6edf3;
+  --muted: #9aa4b2;
+  --accent: #7c4dff;
+  --success: #22c55e;
+  --danger: #ef4444;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--bg), #11131a 60%, #0b0c10);
+}
+
+h1 { margin: 0 0 0.5rem 0; font-size: 2rem; }
+p { margin: 0 0 1.25rem 0; color: var(--muted); }
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #1f2430;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary { background: #2a2f3a; }
+
+.row { display: flex; gap: 0.75rem; align-items: center; }
+.spacer { height: 0.5rem; }
+
+.card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.emoji {
+  font-size: 2rem;
+}
+
+/* Emoji row: 10 equal cells, font-size scales with container width */
+.emoji-row {
+  --emoji-gap: 8px;
+  --cols: 10;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  gap: var(--emoji-gap);
+  align-items: center;
+  container-type: inline-size;
+}
+.emoji-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  /* Compute per-cell width from container width (100cqw), minus gaps */
+  font-size: calc((100cqw - (var(--cols) - 1) * var(--emoji-gap)) / var(--cols) * 0.8);
+}
+
+.status { font-weight: 600; }
+.status.success { color: var(--success); }
+.status.error { color: var(--danger); }
+
+.suggestions .suggestion {
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+}
+.suggestions .suggestion.active {
+  background: rgba(124, 77, 255, 0.25);
+}

@@ -1,0 +1,30 @@
+{
+  "name": "emovi",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "build:puzzles": "node scripts/generate-puzzles.mjs",
+    "tmdb:build": "node scripts/tmdb-build-from-export.mjs",
+    "tmdb:update": "node scripts/tmdb-update-changes.mjs",
+    "tmdb:enrich": "node scripts/tmdb-enrich-years.mjs",
+    "tmdb:clean": "node scripts/tmdb-clean.mjs",
+    "tmdb:full": "TMDB_OVERWRITE=1 node scripts/tmdb-build-from-export.mjs && node scripts/tmdb-enrich-years.mjs"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "latest",
+    "typescript": "^5.4.0"
+  }
+}
