@@ -221,7 +221,11 @@ export default function DailyGame() {
               >
                 {Array.from({ length: cols }).map((_, i) => (
                   <div className="emoji-cell" key={i}>
-                    {i < reveal ? clues[i] : ""}
+                    {i < reveal ? (
+                      <span className="emoji-inline" aria-hidden="true">{clues[i]}</span>
+                    ) : (
+                      ""
+                    )}
                   </div>
                 ))}
               </div>
