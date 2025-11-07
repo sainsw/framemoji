@@ -441,14 +441,29 @@ export default function DailyGame() {
                 Score: {score ?? (reveal < 10 ? (11 - reveal) : 0)}
               </div>
             </div>
-            {posterUrl && (
-              <div aria-hidden="true" style={{ width: 140, flex: '0 0 140px', borderRadius: 8, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }}>
-                {/* Decorative poster image; announce via text elsewhere */}
-                <img src={posterUrl} alt="" style={{ display: 'block', width: '100%', height: 'auto' }} />
-              </div>
-            )}
+            {(() => {
+              // Reserve poster area to avoid layout shift.
+              // Show skeleton while movie list loads and we know the title,
+              // then either render the poster or keep a neutral placeholder.
+              const hasTitle = !!(finalTitle ?? answer ?? meta?.answer ?? null);
+              const isLoadingPoster = hasTitle && movies.length === 0;
+              const posterBoxStyle = { width: 140, height: 210, borderRadius: 8, overflow: 'hidden' as const };
+              return (
+                <div aria-hidden="true" style={{ flex: '0 0 140px' }}>
+                  {posterUrl ? (
+                    <div style={{ ...posterBoxStyle, background: 'rgba(255,255,255,0.06)' }}>
+                      <img src={posterUrl} alt="" style={{ display: 'block', width: '100%', height: 'auto' }} />
+                    </div>
+                  ) : isLoadingPoster ? (
+                    <div className="skeleton" style={posterBoxStyle} />
+                  ) : (
+                    <div style={{ ...posterBoxStyle, background: 'rgba(255,255,255,0.06)' }} />
+                  )}
+                </div>
+              );
+            })()}
           </div>
-          {hist && (
+          {hist ? (
             <div style={{ marginTop: "1.25rem" }}>
               <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Today's distribution</div>
               <HistogramView
@@ -499,6 +514,17 @@ export default function DailyGame() {
                   const total = hist.solves.reduce((a, b) => a + b, 0) + hist.fail;
                   return `Players today: ${total}`;
                 })()}
+              </div>
+            </div>
+          ) : (
+            // Histogram skeleton placeholder to prevent layout shift
+            <div style={{ marginTop: "1.25rem" }}>
+              <div className="skeleton-line lg skeleton" style={{ width: 220, marginBottom: 8 }} />
+              <div className="skeleton" style={{ height: 170, borderRadius: 10 }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: '10px', marginTop: 10 }}>
+                {Array.from({ length: 11 }).map((_, i) => (
+                  <div key={i} className="skeleton-line" style={{ height: 28, borderRadius: 6 }} />
+                ))}
               </div>
             </div>
           )}

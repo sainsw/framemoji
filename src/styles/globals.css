@@ -141,3 +141,25 @@ button.secondary { background: #2a2f3a; }
   text-align: center;
   vertical-align: -0.1em;
 }
+
+/* Lightweight loading skeleton */
+@keyframes skeleton-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton {
+  position: relative;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+  animation: skeleton-shimmer 1.2s infinite;
+}
+.skeleton-line { height: 14px; border-radius: 6px; }
+.skeleton-line.lg { height: 18px; }
+.skeleton-line.sm { height: 10px; }
