@@ -83,10 +83,10 @@ export default function DailyGame() {
             .then((r) => r.json())
             .then((data: { total: number; histogram: Histogram }) => {
               setHist(data.histogram);
-              openReveal(existing.correct ? existing.revealed : 10);
+              openReveal(existing.correct ? existing.revealed : 0);
             })
             .catch(() => {
-              openReveal(existing.correct ? existing.revealed : 10);
+              openReveal(existing.correct ? existing.revealed : 0);
             });
         } else {
           setReveal(1);
@@ -112,15 +112,15 @@ export default function DailyGame() {
   const clues = useMemo(() => meta?.puzzle.emoji_clues ?? [], [meta]);
   const shown = useMemo(() => clues.slice(0, reveal).join(""), [clues, reveal]);
   const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
-  const selectedEmoji = useMemo(() => (selectedReveal ? clues[selectedReveal - 1] : undefined), [selectedReveal, clues]);
+  const selectedEmoji = useMemo(() => (selectedReveal && selectedReveal > 0 ? clues[selectedReveal - 1] : undefined), [selectedReveal, clues]);
   function openReveal(rev: number) {
-    const r = Math.max(1, Math.min(rev, 10));
-    setSelectedReveal(r);
-    if (r === 10) {
-      // Fail bucket: show fail count instead of guesses
+    if (rev === 0) {
+      setSelectedReveal(0);
       setTopGuesses(null);
       return;
     }
+    const r = Math.max(1, Math.min(rev, 10));
+    setSelectedReveal(r);
     fetch(`/api/daily/guesses?reveal=${r}&limit=10`)
       .then((res) => res.json())
       .then((data: { reveal: number; items: { key: string; count: number }[] }) => setTopGuesses(data.items))
@@ -178,7 +178,7 @@ export default function DailyGame() {
         setAnswer(fin.answer ?? null);
         setPercentile(fin.percentile);
         setHist(fin.histogram);
-        openReveal(10);
+        openReveal(0);
         if (meta) {
           setDailyResult(meta.day, {
             correct: false,
@@ -318,15 +318,22 @@ export default function DailyGame() {
                 selectedReveal={selectedReveal ?? undefined}
                 onSelect={(r) => openReveal(r)}
               />
-              {selectedReveal === 10 && hist && (
+              {selectedReveal === 0 && hist && (
                 <div style={{ marginTop: "1rem" }}>
                   <div style={{ fontWeight: 600, marginBottom: 10 }}>❌ Failures</div>
                   <div style={{ fontSize: 14, opacity: 0.95 }}>{hist.fail} players failed today.</div>
                 </div>
               )}
-              {selectedReveal && selectedReveal !== 10 && topGuesses && topGuesses.length > 0 && (
+              {(selectedReveal !== null && selectedReveal !== 0 && topGuesses && topGuesses.length > 0) && (
                 <div style={{ marginTop: "1rem" }}>
-                  <div style={{ fontWeight: 600, marginBottom: 10 }}>Popular guesses at {selectedEmoji ?? selectedReveal}</div>
+                  <div style={{ fontWeight: 600, marginBottom: 10, lineHeight: '1.2', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>Popular guesses at</span>
+                    {selectedEmoji ? (
+                      <span className="emoji-inline" aria-hidden="true">{selectedEmoji}</span>
+                    ) : (
+                      <span>{selectedReveal}</span>
+                    )}
+                  </div>
                   {(() => {
                     const items = topGuesses.slice(0, 10);
                     const max = Math.max(1, ...items.map((g) => g.count));
@@ -415,13 +422,13 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
           const c = histogram.fail;
           const h = Math.round((c / max) * 100);
           const isMe = failed;
-          const isSelected = selectedReveal === 10;
+          const isSelected = selectedReveal === 0;
           return (
             <div
               aria-label={`Failed: ${c}`}
               className={`bar fail${isMe ? ' me' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: isSelected ? '3px solid #ffffff' : (isMe ? '3px solid var(--success)' : '1px solid rgba(255,255,255,0.08)'), borderRadius: 8, position: 'relative', height: '100%', cursor: onSelect ? 'pointer' : 'default' }}
-              onClick={() => onSelect?.(10)}
+              onClick={() => onSelect?.(0)}
             >
               <div className="fill" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`, background: '#666', borderRadius: 6, opacity: 0.8 }} />
             </div>

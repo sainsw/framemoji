@@ -8,15 +8,14 @@ export async function GET(req: Request) {
   const reveal = Number(url.searchParams.get("reveal") || 1);
   const limit = Number(url.searchParams.get("limit") || 10);
   const dateKey = utcDateKey();
-  const hist = await loadHistogram(dateKey);
-  // Try KV-based top guesses first; if empty (e.g., file mode), fall back to file histogram if available via statsStore (not imported here)
+  // Try KV-based top guesses first; if empty (e.g., running in file mode), load file histogram (with guesses) and compute locally
   let items = await topGuessesKV(dateKey, reveal, limit);
   if (items.length === 0) {
-    // reconstruct using file histogram if running in file mode
     try {
-      const { topGuesses } = await import("@/server/statsStore");
-      // @ts-ignore - type mismatch not critical
-      items = topGuesses(hist as any, reveal, limit) as any;
+      const { loadHistogram: loadFileHistogram, topGuesses } = await import("@/server/statsStore");
+      const fileHist = await loadFileHistogram(dateKey);
+      // @ts-ignore
+      items = topGuesses(fileHist, reveal, limit) as any;
     } catch {
       items = [];
     }

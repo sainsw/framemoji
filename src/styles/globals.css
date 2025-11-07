@@ -86,3 +86,13 @@ button.secondary { background: #2a2f3a; }
 .suggestions .suggestion.active {
   background: rgba(124, 77, 255, 0.25);
 }
+
+/* Inline emoji wrapper to normalize baseline/height across glyphs */
+.emoji-inline {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  line-height: 1em;
+  text-align: center;
+  vertical-align: -0.1em;
+}
