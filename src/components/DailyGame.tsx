@@ -60,6 +60,8 @@ export default function DailyGame() {
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+  const [wrongMsg, setWrongMsg] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const movies = useMovies();
 
@@ -99,6 +101,13 @@ export default function DailyGame() {
         setTimeout(() => inputRef.current?.focus(), 0);
       });
   }, []);
+
+  // Move focus to results panel when the game finishes so screen readers announce it
+  useEffect(() => {
+    if (status === "finished") {
+      setTimeout(() => resultRef.current?.focus(), 0);
+    }
+  }, [status]);
 
   // Tick countdown to next UTC midnight when finished
   useEffect(() => {
@@ -165,8 +174,27 @@ export default function DailyGame() {
       setStatus("finished");
     } else {
       setStatus("wrong");
+      // Pick a snarky, accessible message for wrong guesses
+      const WRONG_MESSAGES = [
+        "Close, but no cigar. Another emoji joins the chat.",
+        "Not quite. Unlocking one more emoji…",
+        "Swing and a miss — have an extra emoji.",
+        "Nice try! Here’s another clue.",
+        "Good guess, wrong movie. Revealing another emoji.",
+        "So close. Ok, one more emoji.",
+        "Plot twist: that wasn’t it. New emoji revealed!",
+        "Almost! Another little pictogram to help.",
+        "Nope. The emoji council grants you one more.",
+        "Incorrect. Let’s sweeten it with another emoji.",
+        "Not this time — enjoy a fresh emoji.",
+        "Incorrect guess. Another hint just dropped.",
+      ];
+      setWrongMsg(WRONG_MESSAGES[Math.floor(Math.random() * WRONG_MESSAGES.length)]!);
       const wasAtTen = reveal >= 10; // had all 10 emoji before this guess
       setReveal(resp.revealed);
+      // After a wrong guess, return focus to the input so the
+      // user can immediately type their next attempt.
+      setTimeout(() => inputRef.current?.focus(), 0);
       if (wasAtTen) {
         // Already at 10 and guessed wrong again → finish as fail
         recordLoss();
@@ -217,12 +245,15 @@ export default function DailyGame() {
               <div
                 className="emoji-row"
                 aria-live="polite"
+                aria-atomic="true"
+                role="group"
+                aria-label={`Emoji clues — ${reveal} of 10 revealed`}
                 style={{ ['--cols' as any]: cols }}
               >
                 {Array.from({ length: cols }).map((_, i) => (
                   <div className="emoji-cell" key={i}>
                     {i < reveal ? (
-                      <span className="emoji-inline" aria-hidden="true">{clues[i]}</span>
+                      <span className="emoji-inline">{clues[i]}</span>
                     ) : (
                       ""
                     )}
@@ -232,6 +263,10 @@ export default function DailyGame() {
             );
           })()}
           <p style={{ marginTop: "0.5rem" }}>Reveal: {reveal}/10</p>
+          {/* Screen reader-friendly live summary of shown clues */}
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {`Clues shown (${reveal}/10): ${shown}`}
+          </div>
         </>
       )}
 
@@ -258,6 +293,10 @@ export default function DailyGame() {
                   if (suggestions.length > 0) {
                     setSelectedIdx((i) => (i - 1 + suggestions.length) % suggestions.length);
                   }
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  // Clear current query to collapse suggestions
+                  setGuess("");
                 }
               }}
               aria-label="Guess the movie"
@@ -267,9 +306,15 @@ export default function DailyGame() {
               aria-expanded={suggestions.length > 0}
               aria-controls="suggestions-list"
               aria-activedescendant={suggestions.length > 0 ? `suggestion-${selectedIdx}` : undefined}
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-describedby="guess-instructions"
             />
             <button onClick={() => void submit()} aria-label="Submit guess">Guess</button>
           </div>
+          <p id="guess-instructions" className="sr-only">
+            Type a movie title. Use the up and down arrow keys to choose a suggestion and press Enter to submit.
+          </p>
           {suggestions.length > 0 && (
             <div className="card suggestions" id="suggestions-list" role="listbox" style={{ marginTop: "0.5rem" }}>
               {suggestions.map((m, i) => (
@@ -288,17 +333,36 @@ export default function DailyGame() {
             </div>
           )}
           {status === "wrong" && (
-            <div className="status error" role="status">Wrong — another emoji revealed.</div>
+            <>
+              {/* Visible feedback for sighted users, hidden from SRs to avoid duplicate announcements */}
+              <div
+                className="status error"
+                aria-hidden="true"
+                style={{ marginTop: "1rem" }}
+              >
+                {wrongMsg ?? "Not quite. Another emoji revealed."}
+              </div>
+              {/* Screen-reader-only live region for immediate announcement */}
+              <div className="sr-only" aria-live="assertive" aria-atomic="true">
+                {wrongMsg ?? "Not quite. Another emoji revealed."}
+              </div>
+            </>
           )}
         </>
       )}
 
       {status === "finished" && (
-        <div className="card" style={{ marginTop: "1.25rem" }}>
+        <div className="card" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
           {answer ? (
-            <div className="status">Answer: {answer}</div>
+            <>
+              <div className="status" aria-hidden="true">Answer: {answer}</div>
+              <div className="sr-only" aria-live="assertive" aria-atomic="true">Answer: {answer}</div>
+            </>
           ) : (
-            <div className="status success">Correct!</div>
+            <>
+              <div className="status success" aria-hidden="true">Correct!</div>
+              <div className="sr-only" aria-live="assertive" aria-atomic="true">Correct!</div>
+            </>
           )}
           <div style={{ marginTop: "0.875rem" }}>
             {percentile !== null ? `You're better than ${percentile}% of players today.` : ""}
@@ -416,7 +480,16 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
               aria-label={`Solved at ${i+1} emoji: ${c}`}
               className={`bar${isMe ? ' me' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: isSelected ? '3px solid #ffffff' : (isMe ? '3px solid var(--success)' : '1px solid rgba(255,255,255,0.08)'), borderRadius: 8, position: 'relative', height: '100%', cursor: onSelect ? 'pointer' : 'default' }}
+              role={onSelect ? 'button' : undefined}
+              tabIndex={onSelect ? 0 : -1}
               onClick={() => onSelect?.(i + 1)}
+              onKeyDown={(e) => {
+                if (!onSelect) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(i + 1);
+                }
+              }}
             >
               <div className="fill" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`, background: 'var(--accent)', borderRadius: 6, opacity: 0.8 }} />
             </div>
@@ -432,7 +505,16 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
               aria-label={`Failed: ${c}`}
               className={`bar fail${isMe ? ' me' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: isSelected ? '3px solid #ffffff' : (isMe ? '3px solid var(--success)' : '1px solid rgba(255,255,255,0.08)'), borderRadius: 8, position: 'relative', height: '100%', cursor: onSelect ? 'pointer' : 'default' }}
+              role={onSelect ? 'button' : undefined}
+              tabIndex={onSelect ? 0 : -1}
               onClick={() => onSelect?.(0)}
+              onKeyDown={(e) => {
+                if (!onSelect) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(0);
+                }
+              }}
             >
               <div className="fill" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`, background: '#666', borderRadius: 6, opacity: 0.8 }} />
             </div>

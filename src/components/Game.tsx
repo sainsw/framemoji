@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { PUZZLES, type Puzzle } from "@/data/puzzles";
 import { normalizeTitle } from "@/lib/normalize";
 import { splitGraphemes } from "@/lib/emoji";
@@ -14,8 +14,14 @@ export default function Game() {
   const [guess, setGuess] = useState("");
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [streak, setStreak] = useState(0);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const disabled = useMemo(() => status === "correct", [status]);
+
+  // Focus the input on mount and when moving to a new puzzle
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [current]);
 
   function submit() {
     const ok = normalizeTitle(guess) === normalizeTitle(current.answer);
@@ -25,6 +31,8 @@ export default function Game() {
     } else {
       setStatus("wrong");
       setStreak(0);
+      // Return focus to input for the next guess
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   }
 
@@ -32,6 +40,7 @@ export default function Game() {
     setCurrent(pickRandom(PUZZLES));
     setGuess("");
     setStatus("idle");
+    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   return (
@@ -65,6 +74,8 @@ export default function Game() {
             if (e.key === "Enter") submit();
           }}
           aria-label="Guess the movie"
+          autoFocus
+          ref={inputRef}
           disabled={disabled}
         />
         <button onClick={submit} disabled={disabled} aria-label="Submit guess">
