@@ -5,7 +5,7 @@ import SiteFooter from "./components/site-footer";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: {
-    default: "Emovi — Emoji Movie Trivia",
+    default: "Emovi — Emoji Based Movie Guessing Game",
     template: "%s · Emovi",
   },
   description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
@@ -15,12 +15,12 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     siteName: "Emovi",
-    title: "Emovi — Emoji Movie Trivia",
+    title: "Emovi — Emoji Based Movie Guessing Game",
     description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Emovi — Emoji Movie Trivia",
+    title: "Emovi — Emoji Based Movie Guessing Game",
     description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
     creator: "@samainsworth",
   },
