@@ -7,7 +7,7 @@ export default function SiteFooter() {
   const text = `© Sam Ainsworth ${span}. All Rights Reserved.`;
   const AVATAR_VERSION = '56af89cb';
   return (
-    <footer style={{ marginTop: "2rem" }}>
+    <footer style={{ marginTop: "auto" }}>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 1rem" }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '14px' }}>
           <div style={{ textAlign: 'center', width: '100%' }}>
