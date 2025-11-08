@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
 import SiteFooter from "./components/site-footer";
+import LiquidGlassFilters from "./components/LiquidGlassFilters";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
@@ -49,6 +50,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* Client-side: inject SVG filter with displacement map for refraction */}
+        <LiquidGlassFilters />
         {/* Global SVG filters for liquid-glass effects */}
         <svg width="0" height="0" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
           <defs>

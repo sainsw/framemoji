@@ -119,6 +119,20 @@ button.secondary { background: #2a2f3a; }
   padding: 1rem;
 }
 
+/* Results glass: real refraction via SVG displacement map as backdrop-filter. */
+.results-glass {
+  /* Chrome-only: refract background using our SVG filter */
+  backdrop-filter: url(#liquidGlassRefraction);
+  -webkit-backdrop-filter: url(#liquidGlassRefraction);
+}
+/* Fallback for browsers without SVG backdrop support */
+@supports not ((backdrop-filter: url(#x)) or (-webkit-backdrop-filter: url(#x))) {
+  .results-glass {
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+  }
+}
+
 .emoji {
   font-size: 2rem;
 }

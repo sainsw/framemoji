@@ -439,7 +439,7 @@ export default function DailyGame() {
       )}
 
       {status === "finished" && (
-        <div className="card" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
+        <div className="card results-glass" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
           <div className="row" style={{ alignItems: 'flex-start', gap: '1rem' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               {answer ? (
