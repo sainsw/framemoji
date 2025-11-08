@@ -396,27 +396,27 @@ export default function DailyGame() {
               />
               <button onClick={() => void submit()} aria-label="Submit guess">Guess</button>
             </div>
+            <p id="guess-instructions" className="sr-only">
+              Type a movie title. Use the up and down arrow keys to choose a suggestion and press Enter to submit.
+            </p>
+            {suggestions.length > 0 && (
+              <div className="card suggestions suggestions-popup" id="suggestions-list" role="listbox">
+                {suggestions.map((m, i) => (
+                  <div
+                    key={m.id}
+                    id={`suggestion-${i}`}
+                    className={`suggestion${i === selectedIdx ? " active" : ""}`}
+                    role="option"
+                    aria-selected={i === selectedIdx}
+                    onMouseEnter={() => setSelectedIdx(i)}
+                    onClick={() => submit(m.title)}
+                  >
+                    {m.title} {m.year ? `(${m.year})` : ""}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <p id="guess-instructions" className="sr-only">
-            Type a movie title. Use the up and down arrow keys to choose a suggestion and press Enter to submit.
-          </p>
-          {suggestions.length > 0 && (
-            <div className="card suggestions suggestions-popup" id="suggestions-list" role="listbox">
-              {suggestions.map((m, i) => (
-                <div
-                  key={m.id}
-                  id={`suggestion-${i}`}
-                  className={`suggestion${i === selectedIdx ? " active" : ""}`}
-                  role="option"
-                  aria-selected={i === selectedIdx}
-                  onMouseEnter={() => setSelectedIdx(i)}
-                  onClick={() => submit(m.title)}
-                >
-                  {m.title} {m.year ? `(${m.year})` : ""}
-                </div>
-              ))}
-            </div>
-          )}
           {status === "wrong" && (
             <>
               {/* Visible feedback for sighted users, hidden from SRs to avoid duplicate announcements */}

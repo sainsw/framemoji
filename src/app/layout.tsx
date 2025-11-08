@@ -49,6 +49,25 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* Global SVG filters for liquid-glass effects */}
+        <svg width="0" height="0" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
+          <defs>
+            {/* Subtle noise for glass grain */}
+            <filter id="glass-noise" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+              <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="3" stitchTiles="stitch" result="noise"/>
+              <feColorMatrix in="noise" type="saturate" values="0" result="mono"/>
+              <feComponentTransfer>
+                <feFuncA type="table" tableValues="0 0.08" />
+              </feComponentTransfer>
+            </filter>
+            {/* Optional gooey merge for rounded highlights (not applied to text) */}
+            <filter id="liquid-soft" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
+              <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo" />
+              <feBlend in="SourceGraphic" in2="goo" />
+            </filter>
+          </defs>
+        </svg>
         <a className="skip-link" href="#main">Skip to content</a>
         {children}
         <SiteFooter />
