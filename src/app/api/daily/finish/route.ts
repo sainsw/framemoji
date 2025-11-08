@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const hist = await bumpHistogram(dateKey, r, ok);
   const { percentile, total } = percentileForReveal(hist, r, ok);
   // Reveal answer only after finish
-  const secret = process.env.EMOVI_DAILY_SECRET || "dev-secret";
+  const secret = process.env.FRAMEMOJI_DAILY_SECRET || process.env.EMOVI_DAILY_SECRET || "dev-secret";
   const puzzles = await loadPuzzles();
   const index = selectDailyIndex(secret, dateKey, puzzles.length);
   const p = puzzles[index]!;

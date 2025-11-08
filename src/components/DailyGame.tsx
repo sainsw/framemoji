@@ -591,7 +591,7 @@ export default function DailyGame() {
               // Simple way to reset component state and refetch
               window.location.reload();
             }}
-            aria-label="Clear local Emovi data"
+            aria-label="Clear local Framemoji data"
           >
             Clear local data
           </button>

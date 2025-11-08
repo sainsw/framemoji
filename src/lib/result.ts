@@ -10,12 +10,22 @@ export type DailyResult = {
   id?: string; // optional puzzle id
 };
 
-const PREFIX = "emovi:dailyResult:";
+const PREFIX = "framemoji:dailyResult:";
+const OLD_PREFIX = "emovi:dailyResult:";
 
 export function getDailyResult(day: string): DailyResult | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(PREFIX + day);
+    let raw = localStorage.getItem(PREFIX + day);
+    if (!raw) {
+      // migrate from old prefix if present
+      const old = localStorage.getItem(OLD_PREFIX + day);
+      if (old) {
+        localStorage.setItem(PREFIX + day, old);
+        localStorage.removeItem(OLD_PREFIX + day);
+        raw = old;
+      }
+    }
     return raw ? (JSON.parse(raw) as DailyResult) : null;
   } catch {
     return null;

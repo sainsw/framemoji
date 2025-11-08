@@ -4,7 +4,7 @@ import { loadPuzzles } from "@/server/puzzles";
 
 export async function GET() {
   const dateKey = utcDateKey();
-  const envSecret = process.env.EMOVI_DAILY_SECRET;
+  const envSecret = process.env.FRAMEMOJI_DAILY_SECRET || process.env.EMOVI_DAILY_SECRET;
   const devMode = !envSecret;
   const secret = envSecret ?? "dev-secret";
   const puzzles = await loadPuzzles();
@@ -18,7 +18,7 @@ export async function GET() {
         year: p.year,
         emoji_clues: p.emoji_clues,
       },
-      // In dev mode (no EMOVI_DAILY_SECRET set), include the answer to help testing
+      // In dev mode (no secret set), include the answer to help testing
       answer: devMode ? p.title : undefined,
       dev: devMode,
     },

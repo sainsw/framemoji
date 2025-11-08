@@ -5,22 +5,22 @@ import SiteFooter from "./components/site-footer";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: {
-    default: "Emovi — Emoji Based Movie Guessing Game",
-    template: "%s · Emovi",
+    default: "Framemoji — Emoji Based Movie Guessing Game",
+    template: "%s · Framemoji",
   },
   description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
-  applicationName: "Emovi",
+  applicationName: "Framemoji",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     url: "/",
-    siteName: "Emovi",
-    title: "Emovi — Emoji Based Movie Guessing Game",
+    siteName: "Framemoji",
+    title: "Framemoji — Emoji Based Movie Guessing Game",
     description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Emovi — Emoji Based Movie Guessing Game",
+    title: "Framemoji — Emoji Based Movie Guessing Game",
     description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
     creator: "@samainsworth",
   },

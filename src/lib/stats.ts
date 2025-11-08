@@ -15,7 +15,8 @@ export type DailyStats = {
   todayKey?: string; // cache of last seen day to reset flags when day rolls
 };
 
-const KEY = "emovi:dailyStats";
+const KEY = "framemoji:dailyStats";
+const OLD_KEY = "emovi:dailyStats";
 
 function safeParse<T>(raw: string | null): T | undefined {
   try {
@@ -30,8 +31,18 @@ export function loadStats(now: Date = new Date()): DailyStats {
     return { currentStreak: 0, bestStreak: 0, bestScore: 0, lastScore: 0 } as DailyStats;
   }
   const stored = safeParse<DailyStats>(localStorage.getItem(KEY));
+  const old = safeParse<DailyStats>(localStorage.getItem(OLD_KEY));
   const today = utcDateKey(now);
-  if (!stored) return { currentStreak: 0, bestStreak: 0, bestScore: 0, lastScore: 0, todayKey: today };
+  if (!stored) {
+    if (old) {
+      // migrate
+      localStorage.setItem(KEY, JSON.stringify(old));
+      localStorage.removeItem(OLD_KEY);
+      old.todayKey = today;
+      return old;
+    }
+    return { currentStreak: 0, bestStreak: 0, bestScore: 0, lastScore: 0, todayKey: today };
+  }
   // Reset daily flags if day rolled over
   if (stored.todayKey && stored.todayKey !== today) {
     stored.todayCompleted = false;

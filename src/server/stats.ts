@@ -15,8 +15,8 @@ function hasKV() {
   return !!KV_URL && !!KV_TOKEN && !USE_FILE;
 }
 
-function solvesKey(day: string) { return `emovi:${day}:solves`; }
-function guessesKey(day: string, r: number) { return `emovi:${day}:guesses:r${r}`; }
+function solvesKey(day: string) { return `framemoji:${day}:solves`; }
+function guessesKey(day: string, r: number) { return `framemoji:${day}:guesses:r${r}`; }
 
 async function kvFetch(path: string, init?: RequestInit) {
   const url = `${KV_URL}${path}`;

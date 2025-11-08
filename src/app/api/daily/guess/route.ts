@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const r = typeof revealed === "number" && revealed > 0 ? Math.min(revealed, 10) : 1;
   const dateKey = utcDateKey();
   const puzzles = await loadPuzzles();
-  const secret = process.env.EMOVI_DAILY_SECRET || "dev-secret";
+  const secret = process.env.FRAMEMOJI_DAILY_SECRET || process.env.EMOVI_DAILY_SECRET || "dev-secret";
   const index = selectDailyIndex(secret, dateKey, puzzles.length);
   const p = puzzles[index]!;
   const correct = normalizeTitle(guess) === normalizeTitle(p.title);

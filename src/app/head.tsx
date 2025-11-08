@@ -3,7 +3,7 @@ export default function Head() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Emovi",
+    name: "Framemoji",
     url: base,
     description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
   };
@@ -18,4 +18,3 @@ export default function Head() {
     </>
   );
 }
-

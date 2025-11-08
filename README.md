@@ -1,4 +1,4 @@
-# Emovi
+# Framemoji
 
 Emoji-based movie trivia prototype built with Next.js (App Router, TypeScript).
 
@@ -50,7 +50,8 @@ Each entry in `data/puzzles.json`:
 
 ## Environment
 
-- `EMOVI_DAILY_SECRET`: secret used to deterministically pick today’s movie via HMAC(date).
+- `FRAMEMOJI_DAILY_SECRET`: secret used to deterministically pick today’s movie via HMAC(date).
+  - Backwards-compatible: `EMOVI_DAILY_SECRET` still works if set.
   - If absent, app assumes dev mode: `/api/daily` includes the answer and the UI shows it in a footer to help testing.
 - `TMDB_API_KEY`: required for `npm run tmdb:update` (TMDB API changes endpoint). Optional for `tmdb:build` if the export server requires it.
 - `TMDB_EXPORT_DATE` (optional): override date for `tmdb:build` in `MM_DD_YYYY` format.
@@ -64,8 +65,8 @@ Each entry in `data/puzzles.json`:
   - `KV_REST_API_TOKEN`
   - Optional: `EMOVI_USE_FILE_STATS=1` to force file-mode even if KV is configured.
 - Keys used in KV:
-  - `emovi:YYYY-MM-DD:solves` (hash fields `r1..r10`, `fail`)
-  - `emovi:YYYY-MM-DD:guesses:rN` (sorted set of normalized guesses; scores = counts)
+  - `framemoji:YYYY-MM-DD:solves` (hash fields `r1..r10`, `fail`)
+  - `framemoji:YYYY-MM-DD:guesses:rN` (sorted set of normalized guesses; scores = counts)
 
 ## Autocomplete data (TMDB)
 
