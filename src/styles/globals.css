@@ -149,6 +149,19 @@ button.secondary { background: #2a2f3a; }
   background: rgba(124, 77, 255, 0.25);
 }
 
+/* Suggestions overlay to prevent layout shifts while typing */
+.suggest-container { position: relative; }
+.suggestions-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Inline emoji wrapper to normalize baseline/height across glyphs */
 .emoji-inline {
   display: inline-block;

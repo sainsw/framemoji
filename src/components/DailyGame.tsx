@@ -335,8 +335,9 @@ export default function DailyGame() {
 
       {status !== "finished" && (
         <>
-          <div className="row">
-            <input
+          <div className="suggest-container">
+            <div className="row">
+              <input
               type="text"
               placeholder="Type a movie title…"
               value={guess}
@@ -372,14 +373,15 @@ export default function DailyGame() {
               aria-autocomplete="list"
               aria-haspopup="listbox"
               aria-describedby="guess-instructions"
-            />
-            <button onClick={() => void submit()} aria-label="Submit guess">Guess</button>
+              />
+              <button onClick={() => void submit()} aria-label="Submit guess">Guess</button>
+            </div>
           </div>
           <p id="guess-instructions" className="sr-only">
             Type a movie title. Use the up and down arrow keys to choose a suggestion and press Enter to submit.
           </p>
           {suggestions.length > 0 && (
-            <div className="card suggestions" id="suggestions-list" role="listbox" style={{ marginTop: "0.5rem" }}>
+            <div className="card suggestions suggestions-popup" id="suggestions-list" role="listbox">
               {suggestions.map((m, i) => (
                 <div
                   key={m.id}
