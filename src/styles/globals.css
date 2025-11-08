@@ -127,6 +127,8 @@ button.secondary { background: #2a2f3a; }
   gap: var(--emoji-gap);
   align-items: center;
   container-type: inline-size;
+  /* Prevent layout width from changing when sibling content appears */
+  width: 100%;
 }
 .emoji-cell {
   display: flex;
@@ -139,7 +141,12 @@ button.secondary { background: #2a2f3a; }
 
 .status { font-weight: 600; }
 .status.success { color: var(--success); }
-.status.error { color: var(--danger); }
+.status.error {
+  color: var(--danger);
+  /* Avoid width-driven layout jumps on long messages */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 
 .suggestions .suggestion {
   padding: 0.35rem 0.5rem;

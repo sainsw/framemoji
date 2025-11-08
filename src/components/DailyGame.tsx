@@ -323,7 +323,7 @@ export default function DailyGame() {
       {status !== "finished" && (
         <>
           {(() => {
-            const cols = reveal <= 5 ? 5 : Math.min(reveal, 10);
+            const cols = reveal <= 3 ? 3 : Math.min(reveal, 10);
             return (
               <div
                 className="emoji-row"
@@ -345,7 +345,7 @@ export default function DailyGame() {
               </div>
             );
           })()}
-          <p style={{ marginTop: "0.5rem" }}>Reveal: {reveal}/10</p>
+          <p style={{ marginTop: "0.5rem" }}>Guesses Left: {11 - reveal}</p>
           {/* Screen reader-friendly live summary of shown clues */}
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             {`Clues shown (${reveal}/10): ${shown}`}
