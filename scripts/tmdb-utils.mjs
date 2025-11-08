@@ -45,8 +45,13 @@ export function mergeMovies(base, additions) {
       byId.set(id, { ...existing, ...m });
     }
   }
-  // stable sort by popularity desc (if present), then title, then year
-  return Array.from(byId.values()).sort((a,b)=> (Number(b.popularity||0) - Number(a.popularity||0)) || (a.title||'').localeCompare(b.title||'') || (a.year||0)-(b.year||0));
+  // stable sort by votes (if present), then popularity, then title/year
+  return Array.from(byId.values()).sort((a,b)=>
+    (Number(b.vote_count||0) - Number(a.vote_count||0)) ||
+    (Number(b.popularity||0) - Number(a.popularity||0)) ||
+    (a.title||'').localeCompare(b.title||'') ||
+    (a.year||0)-(b.year||0)
+  );
 }
 
 export function httpsGet(url) {

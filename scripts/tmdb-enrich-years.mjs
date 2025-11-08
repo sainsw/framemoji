@@ -42,7 +42,13 @@ function parseYear(release_date) {
 async function getDetails(id) {
   const url = buildUrl(`/movie/${id}`);
   const d = await fetchJSON(url);
-  return { year: parseYear(d.release_date), poster_path: d.poster_path || null };
+  return {
+    year: parseYear(d.release_date),
+    poster_path: d.poster_path || null,
+    vote_count: Number(d.vote_count) || 0,
+    vote_average: Number(d.vote_average) || 0,
+    revenue: Number(d.revenue) || 0,
+  };
 }
 
 async function main() {
@@ -73,6 +79,10 @@ async function main() {
         const info = await getDetails(t.id);
         if (info.year && !t.year) { t.year = info.year; updatedYear += 1; }
         if (info.poster_path && !t.poster_path) { t.poster_path = info.poster_path; updatedPoster += 1; }
+        // Persist optional metrics if present (may be 0); don't count in updated stats
+        if (typeof info.vote_count === 'number') t.vote_count = info.vote_count;
+        if (typeof info.vote_average === 'number') t.vote_average = info.vote_average;
+        if (typeof info.revenue === 'number') t.revenue = info.revenue;
       } catch (e) {
         failed += 1;
       } finally { done += 1; if (done % 50 === 0) console.log(`.. ${done}/${targets.length}`); }

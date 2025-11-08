@@ -18,7 +18,16 @@ type GuessResp = { correct: boolean; revealed: number; score: number };
 type Histogram = { solves: number[]; fail: number };
 type FinishResp = { percentile: number; total: number; histogram: Histogram; answer?: string; id: number };
 
-type Movie = { id: number; title: string; year?: number; popularity?: number; poster_path?: string | null };
+type Movie = {
+  id: number;
+  title: string;
+  year?: number;
+  popularity?: number;
+  vote_count?: number;
+  vote_average?: number;
+  revenue?: number;
+  poster_path?: string | null;
+};
 
 function useMovies() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -41,7 +50,12 @@ function filterSuggestions(movies: Movie[], q: string) {
   if (filtered.length === 0) {
     filtered = movies.filter((m) => normalizeTitle(m.title).includes(n));
   }
-  filtered.sort((a, b) => (Number(b.popularity || 0) - Number(a.popularity || 0)) || (a.title || '').localeCompare(b.title || ''));
+  // Prefer items many users have rated; fallback to popularity
+  filtered.sort((a, b) =>
+    (Number(b.vote_count || 0) - Number(a.vote_count || 0)) ||
+    (Number(b.popularity || 0) - Number(a.popularity || 0)) ||
+    (a.title || '').localeCompare(b.title || '')
+  );
   return filtered.slice(0, 8);
 }
 
@@ -102,11 +116,17 @@ export default function DailyGame() {
       const hasPosterA = a.poster_path ? 1 : 0;
       const hasPosterB = b.poster_path ? 1 : 0;
       if (hasPosterA !== hasPosterB) return hasPosterB - hasPosterA;
-      // Then prefer year closeness
+      // Prefer year closeness to the puzzle year
       const da = y && a.year ? Math.abs(a.year - y) : 9999;
       const db = y && b.year ? Math.abs(b.year - y) : 9999;
       if (da !== db) return da - db;
-      // Tiebreaker by popularity desc
+      // Then prefer widely-rated titles, then revenue, then rating, then popularity
+      const vc = Number(b.vote_count || 0) - Number(a.vote_count || 0);
+      if (vc !== 0) return vc;
+      const rev = Number(b.revenue || 0) - Number(a.revenue || 0);
+      if (rev !== 0) return rev;
+      const va = Number(b.vote_average || 0) - Number(a.vote_average || 0);
+      if (va !== 0) return va;
       return (Number(b.popularity || 0) - Number(a.popularity || 0));
     });
     const best = cands[0];
