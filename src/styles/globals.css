@@ -95,11 +95,16 @@ input[type="text"] {
 button {
   border: none;
   border-radius: 10px;
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1.1rem;
   background: var(--accent);
   color: white;
   font-weight: 600;
   cursor: pointer;
+  font-size: 16px; /* match input size */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  line-height: 1; /* steadier height alignment with input */
 }
 
 button.secondary { background: #2a2f3a; }
@@ -196,6 +201,14 @@ button.secondary { background: #2a2f3a; }
   pointer-events: none;
   /* Render subtle grain via SVG filter output */
   filter: url(#glass-noise);
+}
+/* Subtle glyph hint appended to buttons (e.g., Enter arrow) */
+.kbd-hint {
+  opacity: 0.9;
+  font-weight: 700;
+  display: inline-block;
+  line-height: 1;
+  transform: translateY(0.08em); /* nudge glyph down to align with text */
 }
 /* Inline emoji wrapper to normalize baseline/height across glyphs */
 .emoji-inline {

@@ -394,7 +394,9 @@ export default function DailyGame() {
               aria-haspopup="listbox"
               aria-describedby="guess-instructions"
               />
-              <button onClick={() => void submit()} aria-label="Submit guess">Guess</button>
+              <button onClick={() => void submit()} aria-label="Submit guess" title="Press Enter to submit">
+                Guess <span className="kbd-hint" aria-hidden="true">↵</span>
+              </button>
             </div>
             <p id="guess-instructions" className="sr-only">
               Type a movie title. Use the up and down arrow keys to choose a suggestion and press Enter to submit.
