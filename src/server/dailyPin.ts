@@ -85,3 +85,18 @@ export async function pinDailyIdIfAbsent(day: string, id: number): Promise<numbe
   }
 }
 
+// Local-only: force-set today's pinned ID. Only used in file-storage mode for development.
+export async function setPinnedDailyId(day: string, id: number): Promise<number> {
+  // Intentionally avoid KV: this is a local-only helper.
+  if (hasKV()) {
+    throw new Error("Cannot set pinned daily ID when KV is configured");
+  }
+  try {
+    await ensureDir();
+    await writeFile(filePath(day), JSON.stringify({ id }), "utf8");
+    return id;
+  } catch (e) {
+    // Best-effort: if write fails, surface the error for the caller
+    throw e;
+  }
+}
