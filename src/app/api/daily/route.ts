@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { utcDateKey, selectDailyIndex } from "@/lib/daily";
 import { loadPuzzles } from "@/server/puzzles";
+import { getPinnedDailyId, pinDailyIdIfAbsent } from "@/server/dailyPin";
 
 export async function GET() {
   const dateKey = utcDateKey();
@@ -8,8 +9,15 @@ export async function GET() {
   const devMode = !envSecret;
   const secret = envSecret ?? "dev-secret";
   const puzzles = await loadPuzzles();
-  const index = selectDailyIndex(secret, dateKey, puzzles.length);
-  const p = puzzles[index]!;
+  // Pin today's puzzle ID on first request and use it thereafter
+  let pinned = await getPinnedDailyId(dateKey);
+  let p = pinned != null ? puzzles.find((x) => x.id === pinned) : undefined;
+  if (!p) {
+    const index = selectDailyIndex(secret, dateKey, puzzles);
+    p = puzzles[index]!;
+    // Persist chosen id (no-op if already set via race)
+    await pinDailyIdIfAbsent(dateKey, p.id);
+  }
   return NextResponse.json(
     {
       day: dateKey,

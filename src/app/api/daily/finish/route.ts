@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { utcDateKey, selectDailyIndex } from "@/lib/daily";
 import { loadPuzzles } from "@/server/puzzles";
 import { bumpHistogram, loadHistogram, percentileForReveal } from "@/server/stats";
+import { getPinnedDailyId, pinDailyIdIfAbsent } from "@/server/dailyPin";
 
 type Body = { revealed?: number; correct?: boolean };
 
@@ -16,8 +17,13 @@ export async function POST(req: Request) {
   // Reveal answer only after finish
   const secret = process.env.FRAMEMOJI_DAILY_SECRET || process.env.EMOVI_DAILY_SECRET || "dev-secret";
   const puzzles = await loadPuzzles();
-  const index = selectDailyIndex(secret, dateKey, puzzles.length);
-  const p = puzzles[index]!;
+  let pinned = await getPinnedDailyId(dateKey);
+  let p = pinned != null ? puzzles.find((x) => x.id === pinned) : undefined;
+  if (!p) {
+    const index = selectDailyIndex(secret, dateKey, puzzles);
+    p = puzzles[index]!;
+    await pinDailyIdIfAbsent(dateKey, p.id);
+  }
   return NextResponse.json({ percentile, total, histogram: hist, answer: ok ? undefined : p.title, id: p.id });
 }
 
