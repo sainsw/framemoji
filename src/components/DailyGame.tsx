@@ -70,6 +70,7 @@ export default function DailyGame() {
   const [hist, setHist] = useState<Histogram | null>(null);
   const [selectedReveal, setSelectedReveal] = useState<number | null>(null);
   const [topGuesses, setTopGuesses] = useState<Array<{ key: string; count: number }> | null>(null);
+  const [guessesLoading, setGuessesLoading] = useState<boolean>(false);
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
@@ -206,10 +207,13 @@ export default function DailyGame() {
     }
     const r = Math.max(1, Math.min(rev, 10));
     setSelectedReveal(r);
+    setGuessesLoading(true);
+    setTopGuesses(null);
     fetch(`/api/daily/guesses?reveal=${r}&limit=10`)
       .then((res) => res.json())
       .then((data: { reveal: number; items: { key: string; count: number }[] }) => setTopGuesses(data.items))
-      .catch(() => setTopGuesses(null));
+      .catch(() => setTopGuesses([]))
+      .finally(() => setGuessesLoading(false));
   }
 
   useEffect(() => {
@@ -522,7 +526,7 @@ export default function DailyGame() {
                       <div style={{ fontSize: 14, opacity: 0.95 }}>{hist.fail} players failed today.</div>
                     </div>
                   )}
-                  {(selectedReveal !== null && selectedReveal !== 0 && topGuesses && topGuesses.length > 0) && (
+                  {(selectedReveal !== null && selectedReveal !== 0) && (
                     <div style={{ marginTop: "1rem" }}>
                       <div style={{ fontWeight: 600, marginBottom: 10, lineHeight: '1.2', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>Popular guesses at</span>
@@ -532,23 +536,29 @@ export default function DailyGame() {
                           <span>{selectedReveal}</span>
                         )}
                       </div>
-                      {(() => {
-                        const items = topGuesses.slice(0, 10);
-                        const max = Math.max(1, ...items.map((g) => g.count));
-                        return items.map((g, i) => {
-                          const match = movies.find((m) => normalizeTitle(m.title) === g.key);
-                          const label = match ? `${match.title}${match.year ? ` (${match.year})` : ''}` : g.key;
-                          const pct = Math.round((g.count / max) * 100);
-                          return (
-                            <div key={g.key + i} style={{ marginBottom: 12 }}>
-                              <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 6 }}>{i + 1}. {label}</div>
-                              <div aria-label={`${g.count} guesses`} style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>
-                                <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 6, opacity: 0.85 }} />
+                      {guessesLoading ? (
+                        <div className="skeleton-line lg skeleton" style={{ width: 180, marginBottom: 8 }} />
+                      ) : topGuesses && topGuesses.length > 0 ? (
+                        (() => {
+                          const items = topGuesses.slice(0, 10);
+                          const max = Math.max(1, ...items.map((g) => g.count));
+                          return items.map((g, i) => {
+                            const match = movies.find((m) => normalizeTitle(m.title) === g.key);
+                            const label = match ? `${match.title}${match.year ? ` (${match.year})` : ''}` : g.key;
+                            const pct = Math.round((g.count / max) * 100);
+                            return (
+                              <div key={g.key + i} style={{ marginBottom: 12 }}>
+                                <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 6 }}>{i + 1}. {label}</div>
+                                <div aria-label={`${g.count} guesses`} style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 6, opacity: 0.85 }} />
+                                </div>
                               </div>
-                            </div>
-                          );
-                        });
-                      })()}
+                            );
+                          });
+                        })()
+                      ) : (
+                        <div style={{ fontSize: 14, opacity: 0.9 }}>No popular guesses yet.</div>
+                      )}
                     </div>
                   )}
                   <div style={{ opacity: 0.8, marginTop: "0.75rem" }}>
