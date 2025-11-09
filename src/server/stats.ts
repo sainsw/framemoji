@@ -122,7 +122,25 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
     // ZREVRANGE key 0 limit-1 WITHSCORES
     const end = Math.max(0, limit - 1);
     const data = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}?withscores=true`);
-    const arr: any[] = data?.result || [];
+    let arr: any[] = data?.result || [];
+    // Fallback: some environments may not honor withscores; if empty, try without and fetch scores per member
+    if (!arr || arr.length === 0) {
+      const dataNoScores = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}`);
+      const members: any[] = dataNoScores?.result || [];
+      if (members && members.length > 0) {
+        const out2: { key: string; count: number }[] = [];
+        for (const m of members) {
+          try {
+            const scoreRes = await kvFetch(`/zscore/${encodeURIComponent(gKey)}/${encodeURIComponent(String(m))}`);
+            const sc = Number(scoreRes?.result || 0);
+            out2.push({ key: String(m), count: sc });
+          } catch {
+            out2.push({ key: String(m), count: 0 });
+          }
+        }
+        return out2;
+      }
+    }
     const out: { key: string; count: number }[] = [];
     for (let i = 0; i < arr.length; i += 2) {
       out.push({ key: String(arr[i]), count: Number(arr[i + 1]) });

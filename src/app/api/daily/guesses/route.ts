@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 // Ensure this route is always evaluated dynamically (no static caching)
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
 import { utcDateKey } from "@/lib/daily";
 import { loadHistogram } from "@/server/stats";
 import { topGuessesKV } from "@/server/stats";
