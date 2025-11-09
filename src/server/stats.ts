@@ -177,3 +177,38 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
     return [] as { key: string; count: number }[];
   }
 }
+
+// Debug helper: inspect key type/cardinality and raw responses for diagnosis
+export async function __debugKVGuesses(day: string, revealed: number, limit = 10) {
+  if (!hasKV()) {
+    return { hasKV: false } as any;
+  }
+  const r = Math.min(Math.max(revealed, 1), 10);
+  const gKey = guessesKey(day, r);
+  const end = Math.max(0, limit - 1);
+  const type = await kvType(gKey);
+  let zcard: number | null = null;
+  try {
+    const zc = await kvFetch(`/zcard/${encodeURIComponent(gKey)}`);
+    zcard = Number(zc?.result ?? null);
+  } catch {}
+  let zrevrange: any = null;
+  let zrange: any = null;
+  let zrangeNoScores: any = null;
+  try {
+    zrevrange = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}?withscores=true`);
+  } catch (e) {
+    zrevrange = { error: (e as any)?.message || 'err' };
+  }
+  try {
+    zrange = await kvFetch(`/zrange/${encodeURIComponent(gKey)}/0/${end}?rev=true&withscores=true`);
+  } catch (e) {
+    zrange = { error: (e as any)?.message || 'err' };
+  }
+  try {
+    zrangeNoScores = await kvFetch(`/zrange/${encodeURIComponent(gKey)}/0/${end}?rev=true`);
+  } catch (e) {
+    zrangeNoScores = { error: (e as any)?.message || 'err' };
+  }
+  return { hasKV: true, key: gKey, type, zcard, zrevrange, zrange, zrangeNoScores };
+}

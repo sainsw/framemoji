@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const revalidate = 0;
 import { utcDateKey } from "@/lib/daily";
 import { loadHistogram } from "@/server/stats";
-import { topGuessesKV } from "@/server/stats";
+import { topGuessesKV, __debugKVGuesses } from "@/server/stats";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -37,11 +37,12 @@ export async function GET(req: Request) {
     }
   }
   if (debug) {
-    return NextResponse.json({ reveal, items, tried, env: {
+    const dbg = await __debugKVGuesses(dateKey, reveal, limit).catch(() => null);
+    return NextResponse.json({ reveal, items, tried, dateKey, env: {
       hasKV: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
       kvUrl: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || null,
       runtime: process.env.NEXT_RUNTIME || 'unknown'
-    }});
+    }, kv: dbg });
   }
   return NextResponse.json({ reveal, items });
 }
