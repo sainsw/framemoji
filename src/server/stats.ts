@@ -30,6 +30,23 @@ async function kvFetch(path: string, init?: RequestInit) {
   return res.json();
 }
 
+async function kvType(key: string): Promise<string | null> {
+  try {
+    const data = await kvFetch(`/type/${encodeURIComponent(key)}`);
+    return (data && typeof data.result === 'string') ? data.result : null;
+  } catch {
+    return null;
+  }
+}
+
+async function kvDel(key: string) {
+  try {
+    await kvFetch(`/del/${encodeURIComponent(key)}`);
+  } catch {
+    // ignore
+  }
+}
+
 export async function loadHistogram(day: string): Promise<DailyHistogram> {
   if (!hasKV()) {
     const file = await loadFileHistogram(day);
@@ -75,8 +92,14 @@ export async function recordGuess(day: string, revealed: number, key: string) {
   if (!hasKV()) return recordFileGuess(day, revealed, key);
   const r = Math.min(Math.max(revealed, 1), 10);
   try {
+    // Ensure the key is a sorted set; delete if a wrong type was set mistakenly
+    const gKey = guessesKey(day, r);
+    const t = await kvType(gKey);
+    if (t && t !== 'zset' && t !== 'none') {
+      await kvDel(gKey);
+    }
     // ZINCRBY guesses key 1 member
-    await kvFetch(`/zincrby/${encodeURIComponent(guessesKey(day, r))}/1/${encodeURIComponent(key)}`);
+    await kvFetch(`/zincrby/${encodeURIComponent(gKey)}/1/${encodeURIComponent(key)}`);
   } catch {
     // ignore
   }
@@ -89,9 +112,16 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
   }
   const r = Math.min(Math.max(revealed, 1), 10);
   try {
+    // Validate key type first to avoid WRONGTYPE errors
+    const gKey = guessesKey(day, r);
+    const t = await kvType(gKey);
+    if (t && t !== 'zset' && t !== 'none') {
+      await kvDel(gKey);
+      return [] as { key: string; count: number }[];
+    }
     // ZREVRANGE key 0 limit-1 WITHSCORES
     const end = Math.max(0, limit - 1);
-    const data = await kvFetch(`/zrevrange/${encodeURIComponent(guessesKey(day, r))}/0/${end}?withscores=true`);
+    const data = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}?withscores=true`);
     const arr: any[] = data?.result || [];
     const out: { key: string; count: number }[] = [];
     for (let i = 0; i < arr.length; i += 2) {
