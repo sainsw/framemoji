@@ -17,6 +17,7 @@ function hasKV() {
 
 function solvesKey(day: string) { return `framemoji:${day}:solves`; }
 function guessesKey(day: string, r: number) { return `framemoji:${day}:guesses:r${r}`; }
+function guessesHashKey(day: string, r: number) { return `framemoji:${day}:guesses2:r${r}`; }
 
 async function kvFetch(path: string, init?: RequestInit) {
   const url = `${KV_URL}${path}`;
@@ -103,6 +104,17 @@ export async function recordGuess(day: string, revealed: number, key: string) {
   } catch {
     // ignore
   }
+  try {
+    // Also write to a hash-based counter for broad REST compatibility
+    const hKey = guessesHashKey(day, r);
+    const t2 = await kvType(hKey);
+    if (t2 && t2 !== 'hash' && t2 !== 'none') {
+      await kvDel(hKey);
+    }
+    await kvFetch(`/hincrby/${encodeURIComponent(hKey)}/${encodeURIComponent(key)}/1`);
+  } catch {
+    // ignore
+  }
 }
 
 export async function topGuessesKV(day: string, revealed: number, limit = 10) {
@@ -112,6 +124,26 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
   }
   const r = Math.min(Math.max(revealed, 1), 10);
   try {
+    // Prefer hash-based counters for maximum compatibility
+    const hKey = guessesHashKey(day, r);
+    const ht = await kvType(hKey);
+    if (ht && ht !== 'hash' && ht !== 'none') {
+      await kvDel(hKey);
+    }
+    try {
+      const hres = await kvFetch(`/hgetall/${encodeURIComponent(hKey)}`);
+      const arrH: any[] = hres?.result || [];
+      if (Array.isArray(arrH) && arrH.length > 0) {
+        const entries: { key: string; count: number }[] = [];
+        for (let i = 0; i < arrH.length; i += 2) {
+          entries.push({ key: String(arrH[i]), count: Number(arrH[i + 1]) });
+        }
+        entries.sort((a, b) => b.count - a.count);
+        return entries.slice(0, limit);
+      }
+    } catch {
+      // fall through to zset path
+    }
     // Validate key type first to avoid WRONGTYPE errors
     const gKey = guessesKey(day, r);
     const t = await kvType(gKey);
@@ -187,14 +219,22 @@ export async function __debugKVGuesses(day: string, revealed: number, limit = 10
   const gKey = guessesKey(day, r);
   const end = Math.max(0, limit - 1);
   const type = await kvType(gKey);
+  const hKey = guessesHashKey(day, r);
+  const typeH = await kvType(hKey);
   let zcard: number | null = null;
+  let hlen: number | null = null;
   try {
     const zc = await kvFetch(`/zcard/${encodeURIComponent(gKey)}`);
     zcard = Number(zc?.result ?? null);
   } catch {}
+  try {
+    const hl = await kvFetch(`/hlen/${encodeURIComponent(hKey)}`);
+    hlen = Number(hl?.result ?? null);
+  } catch {}
   let zrevrange: any = null;
   let zrange: any = null;
   let zrangeNoScores: any = null;
+  let hgetall: any = null;
   try {
     zrevrange = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}?withscores=true`);
   } catch (e) {
@@ -210,5 +250,10 @@ export async function __debugKVGuesses(day: string, revealed: number, limit = 10
   } catch (e) {
     zrangeNoScores = { error: (e as any)?.message || 'err' };
   }
-  return { hasKV: true, key: gKey, type, zcard, zrevrange, zrange, zrangeNoScores };
+  try {
+    hgetall = await kvFetch(`/hgetall/${encodeURIComponent(hKey)}`);
+  } catch (e) {
+    hgetall = { error: (e as any)?.message || 'err' };
+  }
+  return { hasKV: true, key: gKey, type, zcard, zrevrange, zrange, zrangeNoScores, hash: { key: hKey, type: typeH, hlen, hgetall } };
 }
