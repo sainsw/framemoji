@@ -119,26 +119,53 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
       await kvDel(gKey);
       return [] as { key: string; count: number }[];
     }
-    // ZREVRANGE key 0 limit-1 WITHSCORES
+    // Try Upstash-style ZREVRANGE first
     const end = Math.max(0, limit - 1);
     const data = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}?withscores=true`);
     let arr: any[] = data?.result || [];
     // Fallback: some environments may not honor withscores; if empty, try without and fetch scores per member
     if (!arr || arr.length === 0) {
-      const dataNoScores = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}`);
-      const members: any[] = dataNoScores?.result || [];
-      if (members && members.length > 0) {
-        const out2: { key: string; count: number }[] = [];
-        for (const m of members) {
-          try {
-            const scoreRes = await kvFetch(`/zscore/${encodeURIComponent(gKey)}/${encodeURIComponent(String(m))}`);
-            const sc = Number(scoreRes?.result || 0);
-            out2.push({ key: String(m), count: sc });
-          } catch {
-            out2.push({ key: String(m), count: 0 });
+      // Vercel KV-style: ZRANGE with rev=true
+      try {
+        const vr = await kvFetch(`/zrange/${encodeURIComponent(gKey)}/0/${end}?rev=true&withscores=true`);
+        const arr2: any[] = vr?.result || [];
+        if (arr2 && arr2.length > 0) {
+          arr = arr2;
+        } else {
+          // Try without scores and then ZSCORE per member
+          const vrNo = await kvFetch(`/zrange/${encodeURIComponent(gKey)}/0/${end}?rev=true`);
+          const members2: any[] = vrNo?.result || [];
+          if (members2 && members2.length > 0) {
+            const out2: { key: string; count: number }[] = [];
+            for (const m of members2) {
+              try {
+                const scoreRes = await kvFetch(`/zscore/${encodeURIComponent(gKey)}/${encodeURIComponent(String(m))}`);
+                const sc = Number(scoreRes?.result || 0);
+                out2.push({ key: String(m), count: sc });
+              } catch {
+                out2.push({ key: String(m), count: 0 });
+              }
+            }
+            return out2;
           }
         }
-        return out2;
+      } catch {
+        // As a last try, use ZREVRANGE without scores
+        const dataNoScores = await kvFetch(`/zrevrange/${encodeURIComponent(gKey)}/0/${end}`);
+        const members: any[] = dataNoScores?.result || [];
+        if (members && members.length > 0) {
+          const out2: { key: string; count: number }[] = [];
+          for (const m of members) {
+            try {
+              const scoreRes = await kvFetch(`/zscore/${encodeURIComponent(gKey)}/${encodeURIComponent(String(m))}`);
+              const sc = Number(scoreRes?.result || 0);
+              out2.push({ key: String(m), count: sc });
+            } catch {
+              out2.push({ key: String(m), count: 0 });
+            }
+          }
+          return out2;
+        }
       }
     }
     const out: { key: string; count: number }[] = [];
