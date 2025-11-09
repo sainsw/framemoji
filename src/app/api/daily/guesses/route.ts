@@ -40,7 +40,6 @@ export async function GET(req: Request) {
     const dbg = await __debugKVGuesses(dateKey, reveal, limit).catch(() => null);
     return NextResponse.json({ reveal, items, tried, dateKey, env: {
       hasKV: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
-      kvUrl: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || null,
       runtime: process.env.NEXT_RUNTIME || 'unknown'
     }, kv: dbg });
   }
