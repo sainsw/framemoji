@@ -37,6 +37,8 @@ function generateRoundedRectDisplacementMap(options?: {
   const rectHalf = { x: halfW - pad, y: halfH - pad };
   const r = Math.max(0, radius);
 
+  // Signed distance to rounded rectangle centered on the canvas
+  // Negative inside, positive outside
   function sdRoundedBox(px: number, py: number) {
     // map pixel to centered coords
     const x = px - halfW;
@@ -76,10 +78,10 @@ function generateRoundedRectDisplacementMap(options?: {
         mag = smooth; // normalized [0..1]
       }
       if (mag > 0) {
-        const n = gradient(x, y); // outward normal (points from inside -> outside)
+        const nrm = gradient(x, y); // outward normal (points from inside -> outside)
         // Map normalized vector components to [0..255] with 128 as neutral
-        const rx = 128 + Math.max(-1, Math.min(1, n.x * mag)) * 127;
-        const gy = 128 + Math.max(-1, Math.min(1, n.y * mag)) * 127;
+        const rx = 128 + Math.max(-1, Math.min(1, nrm.x * mag)) * 127;
+        const gy = 128 + Math.max(-1, Math.min(1, nrm.y * mag)) * 127;
         data[idx] = rx;
         data[idx + 1] = gy;
         data[idx + 2] = 128; // unused

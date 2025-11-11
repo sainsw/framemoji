@@ -115,8 +115,8 @@ button.secondary { background: #2a2f3a; }
 .card {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px;
-  padding: 1rem;
+  border-radius: 22px;
+  padding: 1.5rem;
 }
 
 /* Results glass: real refraction via SVG displacement map as backdrop-filter. */
