@@ -120,11 +120,19 @@ export default function DailyGame() {
     const y = meta?.puzzle.year;
     // First try exact normalized title match
     let cands = movies.filter((m) => normalizeTitle(m.title) === norm);
-    // Fallback: tolerate alternate/long titles that contain the given title as a full word
-    if (cands.length === 0) {
-      const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const wordRe = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`);
-      cands = movies.filter((m) => wordRe.test(normalizeTitle(m.title)));
+    // If no exact matches OR no posters among exact matches, augment with word-boundary partials
+    const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wordRe = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`);
+    if (cands.length === 0 || cands.every(m => !m.poster_path)) {
+      const partials = movies.filter((m) => wordRe.test(normalizeTitle(m.title)));
+      // Dedupe by id while preserving existing exact matches
+      const seen = new Set(cands.map(m => m.id));
+      for (const m of partials) {
+        if (!seen.has(m.id)) {
+          cands.push(m);
+          seen.add(m.id);
+        }
+      }
     }
     if (cands.length === 0) return null;
     cands.sort((a, b) => {
