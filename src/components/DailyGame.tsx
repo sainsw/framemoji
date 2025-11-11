@@ -87,7 +87,13 @@ export default function DailyGame() {
     if (!title) return null;
     // Try to resolve year from TMDB list; fallback to puzzle year
     const norm = normalizeTitle(title);
-    const cands = movies.filter((m) => typeof m.id === 'number' && normalizeTitle(m.title) === norm);
+    // Prefer exact normalized match; fallback to word-boundary partial match for alternate titles
+    let cands = movies.filter((m) => typeof m.id === 'number' && normalizeTitle(m.title) === norm);
+    if (cands.length === 0) {
+      const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const wordRe = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`);
+      cands = movies.filter((m) => typeof m.id === 'number' && wordRe.test(normalizeTitle(m.title)));
+    }
     const y = (() => {
       if (cands.length > 0) {
         const targetYear = meta?.puzzle.year;
@@ -112,7 +118,14 @@ export default function DailyGame() {
     if (!title) return null;
     const norm = normalizeTitle(title);
     const y = meta?.puzzle.year;
-    const cands = movies.filter((m) => normalizeTitle(m.title) === norm);
+    // First try exact normalized title match
+    let cands = movies.filter((m) => normalizeTitle(m.title) === norm);
+    // Fallback: tolerate alternate/long titles that contain the given title as a full word
+    if (cands.length === 0) {
+      const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const wordRe = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`);
+      cands = movies.filter((m) => wordRe.test(normalizeTitle(m.title)));
+    }
     if (cands.length === 0) return null;
     cands.sort((a, b) => {
       // Prefer entries with poster_path
