@@ -2,6 +2,10 @@
 
 Emoji-based movie trivia prototype built with Next.js (App Router, TypeScript).
 
+## Live demo
+
+Play the deployed version at https://framemoji.ainsworth.dev.
+
 ## Getting started
 
 - Prereqs: Node 18+ and npm (or pnpm/yarn)
@@ -93,8 +97,12 @@ Each entry in `data/puzzles.json`:
     - Set env filters before running to control size and recency (see above).
   
 - Enrich years and posters:
-  - `npm run tmdb:enrich` (requires `TMDB_API_KEY`)
+- `npm run tmdb:enrich` (requires `TMDB_API_KEY`)
   - Fetches details for titles in `public/data/movies.json` missing `year` or `poster_path` and fills them from TMDB `/movie/{id}`.
   - Env: `TMDB_ENRICH_LIMIT` (default 1000), `TMDB_CONCURRENCY` (default 8).
   - Note: The TMDB daily export typically does not include `release_date`, so most entries will initially have no `year`. Run the enrich step after building.
   - The `poster_path` saved is the TMDB path (e.g., `/kqjL17yufvn9OVLyXYpvtyrFfak.jpg`). The app uses `NEXT_PUBLIC_TMDB_IMAGE_BASE + poster_path` to hotlink posters.
+
+## License
+
+Framemoji is released under the Creative Commons Attribution–NonCommercial 4.0 International License (see `LICENSE.txt` or https://creativecommons.org/licenses/by-nc/4.0/ for details).
