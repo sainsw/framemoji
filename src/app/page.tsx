@@ -17,7 +17,15 @@ export default function HomePage() {
       <p>One movie. Ten emoji. Play daily.</p>
       <DailyGame />
       <p style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.85 }}>
-        Built with <span role="img" aria-label="love">❤️</span> in Manchester, UK{' '}
+        <a
+          href="https://github.com/sainsw/framemoji"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'inherit' }}
+        >
+          Built
+        </a>{' '}
+        with <span role="img" aria-label="love">❤️</span> in Manchester, UK{' '}
         <span role="img" aria-label="bee">🐝</span>
         <span role="img" aria-label="United Kingdom flag" style={{ marginLeft: 4 }}>🇬🇧</span>
       </p>
