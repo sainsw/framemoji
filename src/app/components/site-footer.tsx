@@ -3,7 +3,8 @@ import { PrideAvatar } from "./pride-avatar";
 export default function SiteFooter() {
   const now = new Date();
   const year = now.getFullYear();
-  const span = year > 2024 ? `2024 - ${year}` : `${year}`;
+  const startYear = 2025;
+  const span = year > startYear ? `${startYear} - ${year}` : `${startYear}`;
   const text = `© Sam Ainsworth ${span}. All Rights Reserved.`;
   const AVATAR_VERSION = '56af89cb';
   return (
