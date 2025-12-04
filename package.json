@@ -16,7 +16,7 @@
     "tmdb:full": "TMDB_OVERWRITE=1 node scripts/tmdb-build-from-export.mjs && node scripts/tmdb-enrich-years.mjs"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "^16.0.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -24,7 +24,7 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "latest",
+    "eslint-config-next": "^16.0.7",
     "typescript": "^5.4.0"
   }
 }
