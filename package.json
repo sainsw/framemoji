@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "build:puzzles": "node scripts/generate-puzzles.mjs",
     "tmdb:build": "node scripts/tmdb-build-from-export.mjs",
