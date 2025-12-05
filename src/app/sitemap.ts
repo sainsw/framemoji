@@ -1,15 +1,15 @@
 import type { MetadataRoute } from "next";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://framemoji.ainsworth.dev";
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const now = new Date().toISOString();
   return [
     {
-      url: `${base}/`,
+      url: `${siteUrl}/`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 1,
     },
   ];
 }
-

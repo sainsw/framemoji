@@ -1,19 +1,31 @@
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://framemoji.ainsworth.dev";
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "Framemoji",
+  url: siteUrl,
+  description: "Emoji-powered movie guessing game with a fresh puzzle every day.",
+  applicationCategory: "Game",
+  operatingSystem: "Web",
+  inLanguage: "en-GB",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  creator: {
+    "@type": "Person",
+    name: "Sam Ainsworth",
+    url: "https://ainsworth.dev",
+  },
+};
+
 export default function Head() {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Framemoji",
-    url: base,
-    description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
-  };
   return (
     <>
-      <link rel="preconnect" href="https://ainsworth.dev" crossOrigin="" />
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
     </>
   );

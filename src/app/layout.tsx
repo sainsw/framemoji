@@ -3,26 +3,42 @@ import "@/styles/globals.css";
 import SiteFooter from "./components/site-footer";
 import LiquidGlassFilters from "./components/LiquidGlassFilters";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://framemoji.ainsworth.dev";
+const siteName = "Framemoji";
+const siteTitle = `${siteName} — Emoji Based Movie Guessing Game`;
+const siteDescription = "Guess the movie from emoji. One movie, ten emoji — play daily.";
+const socialImage = `${siteUrl}/og`;
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "Framemoji — Emoji Based Movie Guessing Game",
-    template: "%s · Framemoji",
+    default: siteTitle,
+    template: `%s · ${siteName}`,
   },
-  description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
-  applicationName: "Framemoji",
-  alternates: { canonical: "/" },
+  description: siteDescription,
+  keywords: ["emoji movie game", "movie guessing game", "daily emoji quiz", "Framemoji"],
+  applicationName: siteName,
+  alternates: { canonical: siteUrl },
   openGraph: {
     type: "website",
-    url: "/",
-    siteName: "Framemoji",
-    title: "Framemoji — Emoji Based Movie Guessing Game",
-    description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
+    url: siteUrl,
+    siteName,
+    title: siteTitle,
+    description: siteDescription,
+    images: [
+      {
+        url: socialImage,
+        width: 1200,
+        height: 630,
+        alt: `${siteName} social preview`,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Framemoji — Emoji Based Movie Guessing Game",
-    description: "Guess the movie from emoji. One movie, ten emoji — play daily.",
+    title: siteTitle,
+    description: siteDescription,
+    images: [socialImage],
     creator: "@samainsworth",
   },
   robots: {
