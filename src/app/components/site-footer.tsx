@@ -1,12 +1,11 @@
 import { PrideAvatar } from "./pride-avatar";
+import { AVATAR_VERSION, FOOTER_START_YEAR } from "../../lib/assets";
 
 export default function SiteFooter() {
   const now = new Date();
   const year = now.getFullYear();
-  const startYear = 2025;
-  const span = year > startYear ? `${startYear} - ${year}` : `${startYear}`;
+  const span = year > FOOTER_START_YEAR ? `${FOOTER_START_YEAR} - ${year}` : `${FOOTER_START_YEAR}`;
   const text = `© Sam Ainsworth ${span}. All Rights Reserved.`;
-  const AVATAR_VERSION = '56af89cb';
   return (
     <footer style={{ marginTop: "auto" }}>
       {/* Match ainsworth.dev structure: relative h-64 container, inner absolute bottom container */}
@@ -25,9 +24,9 @@ export default function SiteFooter() {
                 >
                   <PrideAvatar>
                     <picture>
-                      <source srcSet={`https://ainsworth.dev/images/home/avatar-${AVATAR_VERSION}.webp`} type="image/webp" />
+                      <source srcSet={`/images/avatar-${AVATAR_VERSION}.webp`} type="image/webp" />
                       <img
-                        src={`https://ainsworth.dev/images/home/avatar-${AVATAR_VERSION}.jpg`}
+                        src={`/images/avatar-${AVATAR_VERSION}.jpg`}
                         alt="my face"
                         width={80}
                         height={80}

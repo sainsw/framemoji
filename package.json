@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prebuild": "node ./scripts/fetch-avatar.js",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -13,7 +14,8 @@
     "tmdb:update": "node scripts/tmdb-update-changes.mjs",
     "tmdb:enrich": "node scripts/tmdb-enrich-years.mjs",
     "tmdb:clean": "node scripts/tmdb-clean.mjs",
-    "tmdb:full": "TMDB_OVERWRITE=1 node scripts/tmdb-build-from-export.mjs && node scripts/tmdb-enrich-years.mjs"
+    "tmdb:full": "TMDB_OVERWRITE=1 node scripts/tmdb-build-from-export.mjs && node scripts/tmdb-enrich-years.mjs",
+    "fetch-avatar": "node ./scripts/fetch-avatar.js"
   },
   "dependencies": {
     "next": "^16.0.7",
