@@ -158,6 +158,19 @@ button.secondary { background: #2a2f3a; }
   font-size: calc((100cqw - (var(--cols) - 1) * var(--emoji-gap)) / var(--cols) * 0.8);
 }
 
+/* Limit emoji to 5 per row on mobile for better readability */
+@media (max-width: 480px) {
+  .emoji-row {
+    /* Cap at 5 columns, but respect lower values (e.g. 3 when few emoji revealed) */
+    grid-template-columns: repeat(min(var(--cols), 5), 1fr);
+  }
+  .emoji-cell {
+    /* Recalculate font-size for capped column layout */
+    --cols-capped: min(var(--cols), 5);
+    font-size: calc((100cqw - (var(--cols-capped) - 1) * var(--emoji-gap)) / var(--cols-capped) * 0.8);
+  }
+}
+
 .status { font-weight: 600; }
 .status.success { color: var(--success); }
 .status.error {
