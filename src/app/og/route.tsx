@@ -28,7 +28,7 @@ export function GET() {
           <span style={{ fontSize: 28, letterSpacing: 2 }}>{siteHost}</span>
         </div>
 
-        <div style={{ display: "grid", gap: 28 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           <div style={{ fontSize: 92, fontWeight: 700, letterSpacing: -2 }}>Framemoji</div>
           <div style={{ fontSize: 36, maxWidth: 820, lineHeight: 1.3 }}>
             One movie. Ten emoji. Play a fresh guessing game every day.
