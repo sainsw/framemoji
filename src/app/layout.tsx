@@ -3,6 +3,8 @@ import "@/styles/globals.css";
 import SiteFooter from "./components/site-footer";
 import LiquidGlassFilters from "./components/LiquidGlassFilters";
 
+import { Analytics } from "@vercel/analytics/next"
+
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://framemoji.ainsworth.dev";
 const siteName = "Framemoji";
 const siteTitle = `${siteName} — Emoji Based Movie Guessing Game`;
@@ -87,6 +89,7 @@ export default function RootLayout({
             </filter>
           </defs>
         </svg>
+        <Analytics />
         <a className="skip-link" href="#main">Skip to content</a>
         {children}
         <SiteFooter />

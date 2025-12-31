@@ -18,6 +18,7 @@
     "fetch-avatar": "node ./scripts/fetch-avatar.js"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "avatar-fetcher": "^0.1.0",
     "next": "^16.0.7",
     "react": "^18.2.0",
