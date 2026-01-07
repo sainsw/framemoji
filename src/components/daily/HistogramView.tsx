@@ -9,6 +9,7 @@ export function HistogramView({
   labels,
   selectedReveal,
   steps,
+  emojiLabels,
 }: {
   histogram: Histogram;
   myReveal: number;
@@ -17,6 +18,7 @@ export function HistogramView({
   labels?: string[];
   selectedReveal?: number;
   steps: readonly number[];
+  emojiLabels?: string[];
 }) {
   const solves = histogram.solves.map((v) => Number(v || 0));
   const failCount = Number(histogram.fail || 0);
@@ -115,12 +117,22 @@ export function HistogramView({
           );
         })()}
       </div>
-      <div className="hist-labels" style={{ ["--hist-cols" as any]: cols }}>
+      <div className="hist-labels hist-labels-number" style={{ ["--hist-cols" as any]: cols }}>
         {steps.map((step, i) => (
           <div key={step}>{labels?.[i] ?? step}</div>
         ))}
         <div>❌</div>
       </div>
+      {emojiLabels && emojiLabels.length === steps.length && (
+        <div className="hist-labels hist-labels-emoji" style={{ ["--hist-cols" as any]: cols }}>
+          {steps.map((step, i) => (
+            <div key={step} aria-label={`${labels?.[i] ?? step} emoji revealed`}>
+              <span aria-hidden="true">{emojiLabels[i]}</span>
+            </div>
+          ))}
+          <div>❌</div>
+        </div>
+      )}
     </div>
   );
 }

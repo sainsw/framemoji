@@ -296,6 +296,7 @@ export default function DailyGame() {
           stats={stats}
           remainingMs={remainingMs}
           resultRef={resultRef}
+          clues={clues}
         />
       )}
 

@@ -24,6 +24,7 @@ export function ResultsPanel({
   stats,
   remainingMs,
   resultRef,
+  clues,
 }: {
   answer: string | null;
   solutionTitle: string | null;
@@ -42,10 +43,21 @@ export function ResultsPanel({
   stats: DailyStats | null;
   remainingMs: number | null;
   resultRef: RefObject<HTMLDivElement>;
+  clues: string[];
 }) {
   const selectedRevealLabel = selectedReveal && selectedReveal > 0 ? `${selectedReveal} emoji` : undefined;
   const hasTitle = !!(finalTitle ?? answer ?? devAnswer ?? null);
   const isLoadingPoster = hasTitle && movies.length === 0;
+  const emojiLabels = (() => {
+    if (!clues || clues.length === 0) return null;
+    const groups: string[] = [];
+    let prev = 0;
+    for (const step of REVEAL_STEPS) {
+      groups.push(clues.slice(prev, step).join(""));
+      prev = step;
+    }
+    return groups;
+  })();
 
   return (
     <div className="card results-glass" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
@@ -121,6 +133,7 @@ export function ResultsPanel({
                 steps={REVEAL_STEPS}
                 selectedReveal={selectedReveal ?? undefined}
                 onSelect={onSelectReveal}
+                emojiLabels={emojiLabels ?? undefined}
               />
               {selectedReveal === 0 && (
                 <div style={{ marginTop: "1rem" }}>

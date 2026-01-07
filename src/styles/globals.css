@@ -425,6 +425,22 @@ button.secondary { background: #2a2f3a; }
   line-height: 1.1;
   opacity: 0.98;
 }
+.hist-labels-emoji {
+  display: none;
+}
+.hist-labels-emoji > div {
+  font-size: 22px;
+  letter-spacing: 0.06em;
+}
+
+@media (min-width: 720px) {
+  .hist-labels-number {
+    display: none;
+  }
+  .hist-labels-emoji {
+    display: grid;
+  }
+}
 
 @media (max-width: 480px) {
   .hist { gap: 4px; height: 120px; }
