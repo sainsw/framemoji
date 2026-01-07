@@ -34,7 +34,8 @@ export default function DailyGame() {
   const [wrongMsg, setWrongMsg] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [hasGuessed, setHasGuessed] = useState(false);
-  const movies = useMovies();
+  const [metaLoaded, setMetaLoaded] = useState(false);
+  const { movies, loaded: moviesLoaded } = useMovies();
   const [finalTitle, setFinalTitle] = useState<string | null>(null);
   const { solutionTitle, posterUrl } = useMovieDetails({ movies, meta, finalTitle, answer });
 
@@ -92,8 +93,12 @@ export default function DailyGame() {
           setAnswer(null);
           setHasGuessed(false);
         }
+        setMetaLoaded(true);
         // focus input on load
         setTimeout(() => inputRef.current?.focus(), 0);
+      })
+      .catch(() => {
+        setMetaLoaded(true);
       });
   }, []);
 
@@ -116,6 +121,7 @@ export default function DailyGame() {
   const clues = useMemo(() => meta?.puzzle.emoji_clues ?? [], [meta]);
   const shown = useMemo(() => clues.slice(0, reveal).join(""), [clues, reveal]);
   const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
+  const animateEmoji = metaLoaded && moviesLoaded;
 
   const handleGuessChange = (value: string) => {
     setGuess(value);
@@ -247,7 +253,7 @@ export default function DailyGame() {
 
       {status !== "finished" && (
         <>
-          <EmojiGrid clues={clues} reveal={reveal} />
+          <EmojiGrid clues={clues} reveal={reveal} animate={animateEmoji} />
           <GuessMeter reveal={reveal} hasGuessed={hasGuessed} />
           {/* Screen reader-friendly live summary of shown clues */}
           <div className="sr-only" aria-live="polite" aria-atomic="true">

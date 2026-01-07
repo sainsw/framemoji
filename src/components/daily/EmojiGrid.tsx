@@ -1,6 +1,14 @@
 import { REVEAL_STEPS } from "@/lib/reveal";
 
-export function EmojiGrid({ clues, reveal }: { clues: string[]; reveal: number }) {
+export function EmojiGrid({
+  clues,
+  reveal,
+  animate,
+}: {
+  clues: string[];
+  reveal: number;
+  animate: boolean;
+}) {
   const cols = reveal <= 3 ? 3 : Math.min(reveal, 10);
   return (
     <div
@@ -14,7 +22,10 @@ export function EmojiGrid({ clues, reveal }: { clues: string[]; reveal: number }
       {Array.from({ length: cols }).map((_, i) => (
         <div className="emoji-cell" key={i}>
           {i < reveal ? (
-            <span className="emoji-inline emoji-reveal" style={{ animationDelay: `${i * 70}ms` }}>
+            <span
+              className={`emoji-inline${animate ? " emoji-reveal" : ""}`}
+              style={animate ? { animationDelay: `${i * 70}ms` } : undefined}
+            >
               {clues[i]}
             </span>
           ) : (
