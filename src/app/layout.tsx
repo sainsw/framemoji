@@ -47,7 +47,6 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#0b0c10" }],
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     shortcut: "/icon.svg",
@@ -58,6 +57,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#0b0c10" }],
 };
 
 export default function RootLayout({

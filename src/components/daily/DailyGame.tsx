@@ -29,8 +29,8 @@ export default function DailyGame() {
   const [guessesLoading, setGuessesLoading] = useState<boolean>(false);
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const resultRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const [wrongMsg, setWrongMsg] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [hasGuessed, setHasGuessed] = useState(false);

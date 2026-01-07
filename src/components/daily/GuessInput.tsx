@@ -18,7 +18,7 @@ export function GuessInput({
   suggestions: Movie[];
   selectedIdx: number;
   setSelectedIdx: (updater: number | ((prev: number) => number)) => void;
-  inputRef: RefObject<HTMLInputElement | null>;
+  inputRef: RefObject<HTMLInputElement>;
   status: "idle" | "correct" | "wrong" | "finished";
   wrongMsg: string | null;
 }) {

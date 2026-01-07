@@ -41,7 +41,7 @@ export function ResultsPanel({
   devAnswer: string | null;
   stats: DailyStats | null;
   remainingMs: number | null;
-  resultRef: RefObject<HTMLDivElement | null>;
+  resultRef: RefObject<HTMLDivElement>;
 }) {
   const selectedRevealLabel = selectedReveal && selectedReveal > 0 ? `${selectedReveal} emoji` : undefined;
   const hasTitle = !!(finalTitle ?? answer ?? devAnswer ?? null);
