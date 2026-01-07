@@ -35,7 +35,7 @@ export default function DailyGame() {
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [hasGuessed, setHasGuessed] = useState(false);
   const [metaLoaded, setMetaLoaded] = useState(false);
-  const { movies, loaded: moviesLoaded } = useMovies();
+  const { movies } = useMovies();
   const [finalTitle, setFinalTitle] = useState<string | null>(null);
   const { solutionTitle, posterUrl } = useMovieDetails({ movies, meta, finalTitle, answer });
 
@@ -121,7 +121,7 @@ export default function DailyGame() {
   const clues = useMemo(() => meta?.puzzle.emoji_clues ?? [], [meta]);
   const shown = useMemo(() => clues.slice(0, reveal).join(""), [clues, reveal]);
   const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
-  const animateEmoji = metaLoaded && moviesLoaded;
+  const animateEmoji = metaLoaded;
 
   const handleGuessChange = (value: string) => {
     setGuess(value);

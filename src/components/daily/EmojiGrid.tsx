@@ -10,6 +10,7 @@ export function EmojiGrid({
   animate: boolean;
 }) {
   const cols = reveal <= 3 ? 3 : Math.min(reveal, 10);
+  const showSkeleton = !animate;
   return (
     <div
       className="emoji-row"
@@ -21,7 +22,9 @@ export function EmojiGrid({
     >
       {Array.from({ length: cols }).map((_, i) => (
         <div className="emoji-cell" key={i}>
-          {i < reveal && animate ? (
+          {showSkeleton && i < 3 ? (
+            <span className="emoji-inline emoji-skeleton" aria-hidden="true" />
+          ) : i < reveal && animate ? (
             <span
               className="emoji-inline emoji-reveal"
               style={{ animationDelay: `${i * 70}ms` }}
