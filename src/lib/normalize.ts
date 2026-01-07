@@ -35,3 +35,13 @@ export function normalizeTitle(t: string) {
     .trim();
   return normalizeNumerals(lower);
 }
+
+export function normalizeLettersOnly(t: string) {
+  const spaced = stripDiacritics(t)
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\b(the|a|an)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return spaced.replace(/\s+/g, "");
+}

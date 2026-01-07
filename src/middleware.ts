@@ -1,6 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-export function middleware(req: NextRequest) {
+export function middleware() {
   const res = NextResponse.next();
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -21,4 +21,3 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: "/:path*",
 };
-

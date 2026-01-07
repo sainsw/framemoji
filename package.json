@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "prebuild": "node ./scripts/fetch-avatar.js",
+    "prebuild": "node ./scripts/fetch-avatar.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -15,7 +15,7 @@
     "tmdb:enrich": "node scripts/tmdb-enrich-years.mjs",
     "tmdb:clean": "node scripts/tmdb-clean.mjs",
     "tmdb:full": "TMDB_OVERWRITE=1 node scripts/tmdb-build-from-export.mjs && node scripts/tmdb-enrich-years.mjs",
-    "fetch-avatar": "node ./scripts/fetch-avatar.js"
+    "fetch-avatar": "node ./scripts/fetch-avatar.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",

@@ -1,7 +1,7 @@
 export type DailyResult = {
   correct: boolean;
-  revealed: number; // 1..10 or 10 on fail
-  score: number; // 10..1 on success, 0 on fail
+  revealed: number; // 3/5/7/9/10 or 10 on fail
+  score: number; // 8/6/4/2/1 on success, 0 on fail
   percentile?: number; // optional if not computed yet
   answer?: string; // present if failed
   // On success, store the winning title locally so we can

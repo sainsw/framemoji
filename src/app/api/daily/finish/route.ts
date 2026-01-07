@@ -3,12 +3,13 @@ import { utcDateKey, selectDailyIndex } from "@/lib/daily";
 import { loadPuzzles } from "@/server/puzzles";
 import { bumpHistogram, loadHistogram, percentileForReveal } from "@/server/stats";
 import { getPinnedDailyId, pinDailyIdIfAbsent } from "@/server/dailyPin";
+import { revealStepForCount } from "@/lib/reveal";
 
 type Body = { revealed?: number; correct?: boolean };
 
 export async function POST(req: Request) {
   const { revealed, correct } = (await req.json().catch(() => ({}))) as Body;
-  const r = typeof revealed === "number" && revealed > 0 ? Math.min(revealed, 10) : 10;
+  const r = typeof revealed === "number" && revealed > 0 ? revealStepForCount(revealed) : revealStepForCount(10);
   const ok = !!correct;
   const dateKey = utcDateKey();
   // Update histogram
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
   // Reveal answer only after finish
   const secret = process.env.FRAMEMOJI_DAILY_SECRET || process.env.EMOVI_DAILY_SECRET || "dev-secret";
   const puzzles = await loadPuzzles();
-  let pinned = await getPinnedDailyId(dateKey);
+  const pinned = await getPinnedDailyId(dateKey);
   let p = pinned != null ? puzzles.find((x) => x.id === pinned) : undefined;
   if (!p) {
     const index = selectDailyIndex(secret, dateKey, puzzles);

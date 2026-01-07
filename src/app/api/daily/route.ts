@@ -10,7 +10,7 @@ export async function GET() {
   const secret = envSecret ?? "dev-secret";
   const puzzles = await loadPuzzles();
   // Pin today's puzzle ID on first request and use it thereafter
-  let pinned = await getPinnedDailyId(dateKey);
+  const pinned = await getPinnedDailyId(dateKey);
   let p = pinned != null ? puzzles.find((x) => x.id === pinned) : undefined;
   if (!p) {
     const index = selectDailyIndex(secret, dateKey, puzzles);

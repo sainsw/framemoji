@@ -1,8 +1,6 @@
-import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import https from 'node:https';
-import zlib from 'node:zlib';
 
 const VAR_DIR = path.join(process.cwd(), 'var', 'tmdb');
 const MOVIES_JSON = path.join(process.cwd(), 'public', 'data', 'movies.json');

@@ -1,11 +1,12 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { recordLoss, recordWin, loadStats, resetLocalStats, type DailyStats } from "@/lib/stats";
-import { splitGraphemes } from "@/lib/emoji";
 import { getDailyResult, setDailyResult, clearAllDailyResults } from "@/lib/result";
 import { msUntilNextUtcMidnight } from "@/lib/date";
-import { normalizeTitle } from "@/lib/normalize";
+import { normalizeLettersOnly, normalizeTitle } from "@/lib/normalize";
+import { REVEAL_STEPS, revealStepForCount, guessesLeftForReveal } from "@/lib/reveal";
 
 type DailyMeta = {
   day: string;
@@ -41,14 +42,14 @@ function useMovies() {
 }
 
 function filterSuggestions(movies: Movie[], q: string) {
-  const n = normalizeTitle(q || "");
+  const n = normalizeLettersOnly(q || "");
   if (!n) return [] as Movie[];
-  const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // Match only at word boundaries (start of string or after a space)
-  const re = new RegExp(`(?:^|\u0020)${escaped}`); // \u0020 = space
-  let filtered = movies.filter((m) => re.test(normalizeTitle(m.title)));
+  let filtered = movies.filter((m) => normalizeLettersOnly(m.title).startsWith(n));
   if (filtered.length === 0) {
-    filtered = movies.filter((m) => normalizeTitle(m.title).includes(n));
+    filtered = movies.filter((m) => normalizeLettersOnly(m.title).includes(n));
+  }
+  if (filtered.length === 0) {
+    filtered = movies.filter((m) => isSubsequence(n, normalizeLettersOnly(m.title)));
   }
   // Prefer items many users have rated; fallback to popularity
   filtered.sort((a, b) =>
@@ -59,9 +60,18 @@ function filterSuggestions(movies: Movie[], q: string) {
   return filtered.slice(0, 8);
 }
 
+function isSubsequence(needle: string, haystack: string) {
+  if (!needle) return true;
+  let i = 0;
+  for (let j = 0; j < haystack.length && i < needle.length; j++) {
+    if (haystack[j] === needle[i]) i += 1;
+  }
+  return i === needle.length;
+}
+
 export default function DailyGame() {
   const [meta, setMeta] = useState<DailyMeta | null>(null);
-  const [reveal, setReveal] = useState(1);
+  const [reveal, setReveal] = useState(REVEAL_STEPS[0]);
   const [guess, setGuess] = useState("");
   const [status, setStatus] = useState<"idle" | "correct" | "wrong" | "finished">("idle");
   const [score, setScore] = useState<number | null>(null);
@@ -80,6 +90,7 @@ export default function DailyGame() {
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [pinInput, setPinInput] = useState<string>("");
   const [pinStatus, setPinStatus] = useState<string | null>(null);
+  const [hasGuessed, setHasGuessed] = useState(false);
   const movies = useMovies();
   const [finalTitle, setFinalTitle] = useState<string | null>(null);
   const solutionTitle = useMemo(() => {
@@ -119,7 +130,7 @@ export default function DailyGame() {
     const norm = normalizeTitle(title);
     const y = meta?.puzzle.year;
     // First try exact normalized title match
-    let cands = movies.filter((m) => normalizeTitle(m.title) === norm);
+    const cands = movies.filter((m) => normalizeTitle(m.title) === norm);
     // If no exact matches OR no posters among exact matches, augment with word-boundary partials
     const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const wordRe = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`);
@@ -168,7 +179,7 @@ export default function DailyGame() {
         // If user already finished today, show the stored result immediately
         const existing = getDailyResult(d.day);
         if (existing) {
-          setReveal(existing.revealed);
+          setReveal(revealStepForCount(existing.revealed));
           setScore(existing.score);
           setPercentile(existing.percentile ?? null);
           setAnswer(existing.answer ?? null);
@@ -183,17 +194,18 @@ export default function DailyGame() {
             .then((r) => r.json())
             .then((data: { total: number; histogram: Histogram }) => {
               setHist(data.histogram);
-              openReveal(existing.correct ? existing.revealed : 0);
+              openReveal(existing.correct ? revealStepForCount(existing.revealed) : 0);
             })
             .catch(() => {
-              openReveal(existing.correct ? existing.revealed : 0);
+              openReveal(existing.correct ? revealStepForCount(existing.revealed) : 0);
             });
         } else {
-          setReveal(1);
+          setReveal(REVEAL_STEPS[0]);
           setStatus("idle");
           setScore(null);
           setPercentile(null);
           setAnswer(null);
+          setHasGuessed(false);
         }
         // focus input on load
         setTimeout(() => inputRef.current?.focus(), 0);
@@ -219,14 +231,14 @@ export default function DailyGame() {
   const clues = useMemo(() => meta?.puzzle.emoji_clues ?? [], [meta]);
   const shown = useMemo(() => clues.slice(0, reveal).join(""), [clues, reveal]);
   const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
-  const selectedEmoji = useMemo(() => (selectedReveal && selectedReveal > 0 ? clues[selectedReveal - 1] : undefined), [selectedReveal, clues]);
+  const selectedRevealLabel = useMemo(() => (selectedReveal && selectedReveal > 0 ? `${selectedReveal} emoji` : undefined), [selectedReveal]);
   function openReveal(rev: number) {
     if (rev === 0) {
       setSelectedReveal(0);
       setTopGuesses(null);
       return;
     }
-    const r = Math.max(1, Math.min(rev, 10));
+    const r = revealStepForCount(rev);
     setSelectedReveal(r);
     setGuessesLoading(true);
     setTopGuesses(null);
@@ -245,6 +257,7 @@ export default function DailyGame() {
   async function submit(forcedTitle?: string) {
     const toSend = (forcedTitle ?? guess).trim();
     if (!toSend) return;
+    setHasGuessed(true);
     const resp = await fetch("/api/daily/guess", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -280,21 +293,21 @@ export default function DailyGame() {
       setFinalTitle(null);
       // Pick a snarky, accessible message for wrong guesses
       const WRONG_MESSAGES = [
-        "Close, but no cigar. Another emoji joins the chat.",
-        "Not quite. Unlocking one more emoji…",
-        "Swing and a miss — have an extra emoji.",
-        "Nice try! Here’s another clue.",
-        "Good guess, wrong movie. Revealing another emoji.",
-        "So close. Ok, one more emoji.",
-        "Plot twist: that wasn’t it. New emoji revealed!",
-        "Almost! Another little pictogram to help.",
-        "Nope. The emoji council grants you one more.",
-        "Incorrect. Let’s sweeten it with another emoji.",
-        "Not this time — enjoy a fresh emoji.",
-        "Incorrect guess. Another hint just dropped.",
+        "Close, but no cigar. Fresh clues just dropped.",
+        "Not quite. Unlocking more emoji…",
+        "Swing and a miss — here are more hints.",
+        "Nice try! Here come extra clues.",
+        "Good guess, wrong movie. More emoji revealed.",
+        "So close. Ok, extra emoji incoming.",
+        "Plot twist: that wasn’t it. New clues revealed!",
+        "Almost! A couple more pictograms to help.",
+        "Nope. The emoji council grants you more.",
+        "Incorrect. Let’s sweeten it with extra emoji.",
+        "Not this time — enjoy more clues.",
+        "Incorrect guess. More hints just dropped.",
       ];
       setWrongMsg(WRONG_MESSAGES[Math.floor(Math.random() * WRONG_MESSAGES.length)]!);
-      const wasAtTen = reveal >= 10; // had all 10 emoji before this guess
+      const wasAtTen = reveal >= REVEAL_STEPS[REVEAL_STEPS.length - 1]; // had all emoji before this guess
       setReveal(resp.revealed);
       // After a wrong guess, return focus to the input so the
       // user can immediately type their next attempt.
@@ -363,7 +376,9 @@ export default function DailyGame() {
                 {Array.from({ length: cols }).map((_, i) => (
                   <div className="emoji-cell" key={i}>
                     {i < reveal ? (
-                      <span className="emoji-inline">{clues[i]}</span>
+                      <span className="emoji-inline emoji-reveal" style={{ animationDelay: `${i * 70}ms` }}>
+                        {clues[i]}
+                      </span>
                     ) : (
                       ""
                     )}
@@ -372,11 +387,41 @@ export default function DailyGame() {
               </div>
             );
           })()}
-          <p style={{ marginTop: "0.5rem" }}>Guesses Left: {11 - reveal}</p>
+          <div
+            className={`guess-meter-shell${hasGuessed ? " is-visible" : ""}`}
+            aria-hidden={!hasGuessed}
+            style={hasGuessed ? { transitionDelay: `${480 + Math.max(0, reveal - 1) * 70}ms` } : undefined}
+          >
+            {(() => {
+            const totalGuesses = REVEAL_STEPS.length;
+            const guessesLeft = guessesLeftForReveal(reveal);
+            const pct = Math.max(0, Math.min(100, Math.round((guessesLeft / totalGuesses) * 100)));
+            return (
+              <div className="guess-meter" aria-live="polite">
+                <div className="guess-meter-copy">
+                  <div className="guess-meter-title">Guesses remaining</div>
+                  <div className="guess-meter-count">
+                    <span className="guess-meter-value">{guessesLeft}</span>
+                    <span className="guess-meter-total">/ {totalGuesses}</span>
+                  </div>
+                </div>
+                <div
+                  className="guess-meter-bar"
+                  role="img"
+                  aria-label={`${guessesLeft} of ${totalGuesses} guesses remaining`}
+                  style={{ ['--ticks' as any]: totalGuesses }}
+                >
+                  <div className="guess-meter-bar-fill" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+            })()}
+          </div>
           {/* Screen reader-friendly live summary of shown clues */}
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             {`Clues shown (${reveal}/10): ${shown}`}
           </div>
+          <div className="spacer" />
         </>
       )}
 
@@ -537,7 +582,8 @@ export default function DailyGame() {
                     histogram={hist}
                     myReveal={reveal}
                     failed={!!answer}
-                    labels={clues}
+                    labels={REVEAL_STEPS.map((step) => String(step))}
+                    steps={REVEAL_STEPS}
                     selectedReveal={selectedReveal ?? undefined}
                     onSelect={(r) => openReveal(r)}
                   />
@@ -550,12 +596,8 @@ export default function DailyGame() {
                   {(selectedReveal !== null && selectedReveal !== 0) && (
                     <div style={{ marginTop: "1rem" }}>
                       <div style={{ fontWeight: 600, marginBottom: 10, lineHeight: '1.2', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span>Popular guesses at</span>
-                        {selectedEmoji ? (
-                          <span className="emoji-inline" aria-hidden="true">{selectedEmoji}</span>
-                        ) : (
-                          <span>{selectedReveal}</span>
-                        )}
+                        <span>Popular guesses after</span>
+                        <span>{selectedRevealLabel ?? selectedReveal}</span>
                       </div>
                       {guessesLoading ? (
                         <div className="skeleton-line lg skeleton" style={{ width: 180, marginBottom: 8 }} />
@@ -593,8 +635,8 @@ export default function DailyGame() {
             <div style={{ marginTop: "1.25rem" }}>
               <div className="skeleton-line lg skeleton" style={{ width: 220, marginBottom: 8 }} />
               <div className="skeleton" style={{ height: 170, borderRadius: 10 }} />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: '10px', marginTop: 10 }}>
-                {Array.from({ length: 11 }).map((_, i) => (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${REVEAL_STEPS.length + 1}, 1fr)`, gap: '10px', marginTop: 10 }}>
+                {Array.from({ length: REVEAL_STEPS.length + 1 }).map((_, i) => (
                   <div key={i} className="skeleton-line" style={{ height: 28, borderRadius: 6 }} />
                 ))}
               </div>
@@ -682,29 +724,33 @@ export default function DailyGame() {
   );
 }
 
-function HistogramView({ histogram, myReveal, failed, onSelect, labels, selectedReveal }: { histogram: { solves: number[]; fail: number }; myReveal: number; failed: boolean; onSelect?: (reveal: number) => void; labels?: string[]; selectedReveal?: number }) {
-  const max = Math.max(1, ...histogram.solves, histogram.fail);
+function HistogramView({ histogram, myReveal, failed, onSelect, labels, selectedReveal, steps }: { histogram: { solves: number[]; fail: number }; myReveal: number; failed: boolean; onSelect?: (reveal: number) => void; labels?: string[]; selectedReveal?: number; steps: number[] }) {
+  const solves = histogram.solves.map((v) => Number(v || 0));
+  const failCount = Number(histogram.fail || 0);
+  const max = Math.max(1, ...solves, failCount);
+  const cols = steps.length + 1;
   return (
     <div>
-      <div className="hist">
-        {histogram.solves.map((c, i) => {
+      <div className="hist" style={{ ['--hist-cols' as any]: cols }}>
+        {solves.map((c, i) => {
+          const step = steps[i] ?? (i + 1);
           const h = Math.round((c / max) * 100);
-          const isMe = !failed && (myReveal - 1 === i);
-          const isSelected = selectedReveal === (i + 1);
+          const isMe = !failed && revealStepForCount(myReveal) === step;
+          const isSelected = selectedReveal === step;
           return (
             <div
               key={i}
-              aria-label={`Solved at ${i+1} emoji: ${c}`}
+              aria-label={`Solved at ${step} emoji: ${c}`}
               className={`bar${isMe ? ' me' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: isSelected ? '3px solid #ffffff' : (isMe ? '3px solid var(--success)' : '1px solid rgba(255,255,255,0.08)'), borderRadius: 8, position: 'relative', height: '100%', cursor: onSelect ? 'pointer' : 'default' }}
               role={onSelect ? 'button' : undefined}
               tabIndex={onSelect ? 0 : -1}
-              onClick={() => onSelect?.(i + 1)}
+              onClick={() => onSelect?.(step)}
               onKeyDown={(e) => {
                 if (!onSelect) return;
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onSelect(i + 1);
+                  onSelect(step);
                 }
               }}
             >
@@ -713,7 +759,7 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
           );
         })}
         {(() => {
-          const c = histogram.fail;
+          const c = failCount;
           const h = Math.round((c / max) * 100);
           const isMe = failed;
           const isSelected = selectedReveal === 0;
@@ -733,15 +779,15 @@ function HistogramView({ histogram, myReveal, failed, onSelect, labels, selected
                 }
               }}
             >
-              <div className="fill" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`, background: '#666', borderRadius: 6, opacity: 0.8 }} />
+              <div className="fill" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`, background: 'var(--danger)', borderRadius: 6, opacity: 0.9 }} />
             </div>
           );
         })()}
       </div>
-      <div className="hist-labels">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i}>
-            {labels?.[i] ?? (i + 1)}
+      <div className="hist-labels" style={{ ['--hist-cols' as any]: cols }}>
+        {steps.map((step, i) => (
+          <div key={step}>
+            {labels?.[i] ?? step}
           </div>
         ))}
         <div>❌</div>

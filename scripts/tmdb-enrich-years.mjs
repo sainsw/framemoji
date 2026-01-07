@@ -54,7 +54,6 @@ async function getDetails(id) {
 async function main() {
   await ensureDirs();
   const metaPath = path.join(VAR_DIR, 'enrich_details.json');
-  const meta = await readJSON(metaPath, {});
   const LIMIT = Number(process.env.TMDB_ENRICH_LIMIT || 1000);
   const CONC = Number(process.env.TMDB_CONCURRENCY || 8);
 
@@ -83,7 +82,7 @@ async function main() {
         if (typeof info.vote_count === 'number') t.vote_count = info.vote_count;
         if (typeof info.vote_average === 'number') t.vote_average = info.vote_average;
         if (typeof info.revenue === 'number') t.revenue = info.revenue;
-      } catch (e) {
+      } catch {
         failed += 1;
       } finally { done += 1; if (done % 50 === 0) console.log(`.. ${done}/${targets.length}`); }
     }

@@ -1,5 +1,6 @@
 // Hybrid stats store: uses Vercel KV (Upstash Redis) when configured, otherwise falls back to file-based JSON in var/stats
 import { loadHistogram as loadFileHistogram, bumpHistogram as bumpFileHistogram, percentileForReveal as percentileForRevealFile, recordGuess as recordFileGuess } from "@/server/statsStore";
+import { REVEAL_STEPS, revealIndexForCount } from "@/lib/reveal";
 
 export type DailyHistogram = {
   solves: number[];
@@ -18,6 +19,7 @@ function hasKV() {
 function solvesKey(day: string) { return `framemoji:${day}:solves`; }
 // Use hash-based counters for guesses per reveal bucket
 function guessesHashKey(day: string, r: number) { return `framemoji:${day}:guesses2:r${r}`; }
+const BUCKETS = REVEAL_STEPS.length;
 
 async function kvFetch(path: string, init?: RequestInit) {
   const url = `${KV_URL}${path}`;
@@ -61,18 +63,25 @@ export async function loadHistogram(day: string): Promise<DailyHistogram> {
     for (let i = 0; i < arr.length; i += 2) {
       map[String(arr[i])] = String(arr[i + 1]);
     }
-    const solves: number[] = new Array(10).fill(0).map((_, i) => Number(map[`r${i + 1}`] || 0));
+    const solves: number[] = new Array(BUCKETS).fill(0);
+    for (const [field, value] of Object.entries(map)) {
+      if (!field.startsWith("r")) continue;
+      const raw = Number(field.slice(1));
+      if (!Number.isFinite(raw) || raw <= 0) continue;
+      const idx = revealIndexForCount(raw);
+      solves[idx] += Number(value || 0);
+    }
     const fail = Number(map.fail || 0);
     return { solves, fail };
   } catch {
-    return { solves: new Array(10).fill(0), fail: 0 };
+    return { solves: new Array(BUCKETS).fill(0), fail: 0 };
   }
 }
 
 export async function bumpHistogram(day: string, revealed: number, correct: boolean) {
   if (!hasKV()) return bumpFileHistogram(day, revealed, correct);
-  const r = Math.min(Math.max(revealed, 1), 10);
-  const field = correct ? `r${r}` : "fail";
+  const idx = revealIndexForCount(revealed);
+  const field = correct ? `r${idx + 1}` : "fail";
   // HINCRBY solves field 1
   try {
     await kvFetch(`/hincrby/${encodeURIComponent(solvesKey(day))}/${encodeURIComponent(field)}/1`);
@@ -86,12 +95,12 @@ export async function bumpHistogram(day: string, revealed: number, correct: bool
 }
 
 export function percentileForReveal(hist: DailyHistogram, revealed: number, correct: boolean) {
-  return percentileForRevealFile({ solves: hist.solves, fail: hist.fail, guesses: Array.from({ length: 10 }, () => ({})) }, revealed, correct);
+  return percentileForRevealFile({ solves: hist.solves, fail: hist.fail, guesses: Array.from({ length: BUCKETS }, () => ({})) }, revealed, correct);
 }
 
 export async function recordGuess(day: string, revealed: number, key: string) {
   if (!hasKV()) return recordFileGuess(day, revealed, key);
-  const r = Math.min(Math.max(revealed, 1), 10);
+  const r = revealIndexForCount(revealed) + 1;
   try {
     const hKey = guessesHashKey(day, r);
     const t = await kvType(hKey);
@@ -109,7 +118,7 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
     // not used in file mode here; API route will read from file
     return [] as { key: string; count: number }[];
   }
-  const r = Math.min(Math.max(revealed, 1), 10);
+  const r = revealIndexForCount(revealed) + 1;
   try {
     const hKey = guessesHashKey(day, r);
     const ht = await kvType(hKey);
@@ -132,11 +141,11 @@ export async function topGuessesKV(day: string, revealed: number, limit = 10) {
 }
 
 // Debug helper: inspect key type/cardinality and raw responses for diagnosis
-export async function __debugKVGuesses(day: string, revealed: number, limit = 10) {
+export async function __debugKVGuesses(day: string, revealed: number) {
   if (!hasKV()) {
     return { hasKV: false } as any;
   }
-  const r = Math.min(Math.max(revealed, 1), 10);
+  const r = revealIndexForCount(revealed) + 1;
   const hKey = guessesHashKey(day, r);
   const typeH = await kvType(hKey);
   let hlen: number | null = null;

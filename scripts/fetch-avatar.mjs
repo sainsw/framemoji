@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const path = require("path");
-const { fetchAndProcessAvatar, writeOutputs } = require("avatar-fetcher");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { fetchAndProcessAvatar, writeOutputs } from "avatar-fetcher";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const GITHUB_USERNAME = "sainsw";
 const OUTPUT_DIR = path.join(__dirname, "..", "public", "images");

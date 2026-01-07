@@ -179,6 +179,100 @@ button.secondary { background: #2a2f3a; }
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.guess-meter {
+  margin-top: 0.6rem;
+  margin-bottom: 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.85rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+}
+.guess-meter-shell {
+  margin-top: 0.75rem;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  overflow: hidden;
+  pointer-events: none;
+  transition: max-height 0.35s ease, opacity 0.25s ease, transform 0.35s ease;
+}
+.guess-meter-shell.is-visible {
+  max-height: 120px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.guess-meter-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+.guess-meter-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+.guess-meter-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.guess-meter-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.guess-meter-total {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+.guess-meter-bar {
+  position: relative;
+  width: 160px;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,0.16) 0 1px,
+      rgba(0,0,0,0) 1px calc(100% / var(--ticks))
+    ),
+    rgba(0,0,0,0.35);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.guess-meter-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.75);
+  box-shadow: 0 0 12px rgba(255,255,255,0.25);
+}
+
+@media (max-width: 360px) {
+  .guess-meter {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .guess-meter-bar {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guess-meter-shell {
+    transition: none;
+    transform: none;
+  }
+  .emoji-reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
 
 .suggestions .suggestion {
   padding: 0.35rem 0.5rem;
@@ -246,6 +340,30 @@ button.secondary { background: #2a2f3a; }
   text-align: center;
   vertical-align: -0.1em;
 }
+.emoji-reveal {
+  opacity: 0;
+  transform: scale(0.6) translateY(6px);
+  filter: blur(4px);
+  animation: emoji-pop 480ms cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+}
+
+@keyframes emoji-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(6px);
+    filter: blur(4px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08) translateY(0);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
 
 /* Lightweight loading skeleton */
 @keyframes skeleton-shimmer {
@@ -272,14 +390,17 @@ button.secondary { background: #2a2f3a; }
 /* Histogram layout (responsive) */
 .hist {
   display: grid;
-  grid-template-columns: repeat(11, 1fr);
+  grid-template-columns: repeat(var(--hist-cols, 11), 1fr);
   gap: 10px;
-  align-items: end;
+  align-items: stretch;
   height: 170px;
+}
+.hist .bar {
+  align-self: stretch;
 }
 .hist-labels {
   display: grid;
-  grid-template-columns: repeat(11, 1fr);
+  grid-template-columns: repeat(var(--hist-cols, 11), 1fr);
   gap: 10px;
   margin-top: 10px;
 }

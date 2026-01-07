@@ -5,7 +5,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const revalidate = 0;
 import { utcDateKey } from "@/lib/daily";
-import { loadHistogram } from "@/server/stats";
 import { topGuessesKV, __debugKVGuesses } from "@/server/stats";
 
 export async function GET(req: Request) {
@@ -16,7 +15,7 @@ export async function GET(req: Request) {
   const dateKey = utcDateKey();
   // Try KV-based top guesses first; optionally fall back to file mode when explicitly enabled
   let items: { key: string; count: number }[] = [];
-  let tried: string[] = [];
+  const tried: string[] = [];
   try {
     tried.push("kv");
     items = await topGuessesKV(dateKey, reveal, limit);
@@ -37,7 +36,7 @@ export async function GET(req: Request) {
     }
   }
   if (debug) {
-    const dbg = await __debugKVGuesses(dateKey, reveal, limit).catch(() => null);
+    const dbg = await __debugKVGuesses(dateKey, reveal).catch(() => null);
     return NextResponse.json({ reveal, items, tried, dateKey, env: {
       hasKV: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
       runtime: process.env.NEXT_RUNTIME || 'unknown'
