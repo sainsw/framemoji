@@ -1,4 +1,5 @@
 import { REVEAL_STEPS } from "@/lib/reveal";
+import { Skeleton } from "@/components/common/Skeleton";
 
 export function EmojiGrid({
   clues,
@@ -23,7 +24,7 @@ export function EmojiGrid({
       {Array.from({ length: cols }).map((_, i) => (
         <div className="emoji-cell" key={i}>
           {showSkeleton && i < 3 ? (
-            <span className="emoji-inline emoji-skeleton" aria-hidden="true" />
+            <Skeleton as="span" variant="emoji" className="emoji-inline" />
           ) : i < reveal && animate ? (
             <span
               className="emoji-inline emoji-reveal"

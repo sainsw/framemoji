@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import { normalizeTitle } from "@/lib/normalize";
 import { REVEAL_STEPS } from "@/lib/reveal";
 import type { DailyStats } from "@/lib/stats";
+import { Skeleton } from "@/components/common/Skeleton";
 import { HistogramView } from "./HistogramView";
 import type { Histogram, Movie, TopGuess } from "./types";
 
@@ -104,7 +105,7 @@ export function ResultsPanel({
                   <img src={posterUrl} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
                 </div>
               ) : isLoadingPoster ? (
-                <div className="skeleton" style={posterBoxStyle} />
+                <Skeleton style={posterBoxStyle} />
               ) : (
                 <div style={{ ...posterBoxStyle, background: "rgba(255,255,255,0.06)" }} />
               )}
@@ -148,7 +149,7 @@ export function ResultsPanel({
                     <span>{selectedRevealLabel ?? selectedReveal}</span>
                   </div>
                   {guessesLoading ? (
-                    <div className="skeleton-line lg skeleton" style={{ width: 180, marginBottom: 8 }} />
+                    <Skeleton variant="line" size="lg" style={{ width: 180, marginBottom: 8 }} />
                   ) : topGuesses && topGuesses.length > 0 ? (
                     (() => {
                       const items = topGuesses.slice(0, 10);
@@ -181,11 +182,11 @@ export function ResultsPanel({
       ) : (
         // Histogram skeleton placeholder to prevent layout shift
         <div style={{ marginTop: "1.25rem" }}>
-          <div className="skeleton-line lg skeleton" style={{ width: 220, marginBottom: 8 }} />
-          <div className="skeleton" style={{ height: 170, borderRadius: 10 }} />
+          <Skeleton variant="line" size="lg" style={{ width: 220, marginBottom: 8 }} />
+          <Skeleton style={{ height: 170, borderRadius: 10 }} />
           <div style={{ display: "grid", gridTemplateColumns: `repeat(${REVEAL_STEPS.length + 1}, 1fr)`, gap: "10px", marginTop: 10 }}>
             {Array.from({ length: REVEAL_STEPS.length + 1 }).map((_, i) => (
-              <div key={i} className="skeleton-line" style={{ height: 28, borderRadius: 6 }} />
+              <Skeleton key={i} variant="line" style={{ height: 28, borderRadius: 6 }} />
             ))}
           </div>
         </div>
