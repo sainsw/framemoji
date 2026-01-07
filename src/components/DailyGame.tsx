@@ -724,7 +724,7 @@ export default function DailyGame() {
   );
 }
 
-function HistogramView({ histogram, myReveal, failed, onSelect, labels, selectedReveal, steps }: { histogram: { solves: number[]; fail: number }; myReveal: number; failed: boolean; onSelect?: (reveal: number) => void; labels?: string[]; selectedReveal?: number; steps: number[] }) {
+function HistogramView({ histogram, myReveal, failed, onSelect, labels, selectedReveal, steps }: { histogram: { solves: number[]; fail: number }; myReveal: number; failed: boolean; onSelect?: (reveal: number) => void; labels?: string[]; selectedReveal?: number; steps: readonly number[] }) {
   const solves = histogram.solves.map((v) => Number(v || 0));
   const failCount = Number(histogram.fail || 0);
   const max = Math.max(1, ...solves, failCount);
