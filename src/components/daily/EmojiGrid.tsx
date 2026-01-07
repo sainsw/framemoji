@@ -21,10 +21,10 @@ export function EmojiGrid({
     >
       {Array.from({ length: cols }).map((_, i) => (
         <div className="emoji-cell" key={i}>
-          {i < reveal ? (
+          {i < reveal && animate ? (
             <span
-              className={`emoji-inline${animate ? " emoji-reveal" : ""}`}
-              style={animate ? { animationDelay: `${i * 70}ms` } : undefined}
+              className="emoji-inline emoji-reveal"
+              style={{ animationDelay: `${i * 70}ms` }}
             >
               {clues[i]}
             </span>
