@@ -345,18 +345,6 @@ export default function DailyGame() {
     <section className="card">
       <div className="row" style={{ justifyContent: "space-between" }}>
         <div className="status">Daily — {meta?.day ?? "…"}</div>
-        {(() => {
-          const cur = mounted && stats ? (stats.currentStreak ?? 0) : 0;
-          const best = mounted && stats ? (stats.bestScore ?? 0) : 0;
-          const bestStreak = mounted && stats ? (stats.bestStreak ?? 0) : 0;
-          const parts: string[] = [];
-          if (cur > 0) parts.push(`Streak: ${cur}`);
-          if (best > 0) parts.push(`Best score: ${best}`);
-          if (bestStreak > 0 && stats && bestStreak !== (stats.currentStreak ?? 0)) parts.push(`Best streak: ${bestStreak}`);
-          return parts.length > 0 ? (
-            <div className="status" suppressHydrationWarning>{parts.join(" • ")}</div>
-          ) : null;
-        })()}
       </div>
       <div className="spacer" />
 
@@ -642,7 +630,21 @@ export default function DailyGame() {
               </div>
             </div>
           )}
-          <div style={{ marginTop: "1.25rem", opacity: 0.8 }} suppressHydrationWarning>
+          {(() => {
+            const cur = mounted && stats ? (stats.currentStreak ?? 0) : 0;
+            const best = mounted && stats ? (stats.bestScore ?? 0) : 0;
+            const bestStreak = mounted && stats ? (stats.bestStreak ?? 0) : 0;
+            const parts: string[] = [];
+            if (cur > 0) parts.push(`Streak: ${cur}`);
+            if (best > 0) parts.push(`Best score: ${best}`);
+            if (bestStreak > 0 && stats && bestStreak !== (stats.currentStreak ?? 0)) parts.push(`Best streak: ${bestStreak}`);
+            return parts.length > 0 ? (
+              <div style={{ marginTop: "1.25rem", opacity: 0.8 }} suppressHydrationWarning>
+                {parts.join(" • ")}
+              </div>
+            ) : null;
+          })()}
+          <div style={{ marginTop: "0.5rem", opacity: 0.8 }} suppressHydrationWarning>
             {remainingMs !== null ? (
               (() => {
                 const total = Math.max(0, remainingMs);
