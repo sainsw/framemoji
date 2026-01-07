@@ -137,25 +137,40 @@ export default function DailyGame() {
       setScore(resp.score);
       setReveal(resp.revealed);
       recordWin(resp.score);
-      const fin = (await fetch("/api/daily/finish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revealed: resp.revealed, correct: true }),
-      }).then((r) => r.json())) as FinishResp;
-      setPercentile(fin.percentile);
-      setHist(fin.histogram);
-      openReveal(resp.revealed);
       if (meta) {
         setDailyResult(meta.day, {
           correct: true,
           revealed: resp.revealed,
           score: resp.score,
-          percentile: fin.percentile,
           title: toSend,
           id: String(meta.puzzle.id),
         });
       }
       setStatus("finished");
+      void fetch("/api/daily/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revealed: resp.revealed, correct: true }),
+      })
+        .then((r) => r.json())
+        .then((fin: FinishResp) => {
+          setPercentile(fin.percentile);
+          setHist(fin.histogram);
+          openReveal(resp.revealed);
+          if (meta) {
+            setDailyResult(meta.day, {
+              correct: true,
+              revealed: resp.revealed,
+              score: resp.score,
+              percentile: fin.percentile,
+              title: toSend,
+              id: String(meta.puzzle.id),
+            });
+          }
+        })
+        .catch(() => {
+          // ignore finish errors; user can still see their result
+        });
     } else {
       setStatus("wrong");
       setFinalTitle(null);
@@ -183,26 +198,41 @@ export default function DailyGame() {
       if (wasAtTen) {
         // Already at 10 and guessed wrong again → finish as fail
         recordLoss();
-        const fin = (await fetch("/api/daily/finish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ revealed: resp.revealed, correct: false }),
-        }).then((r) => r.json())) as FinishResp;
-        setAnswer(fin.answer ?? null);
-        setPercentile(fin.percentile);
-        setHist(fin.histogram);
+        setAnswer("Loading answer...");
+        setStatus("finished");
         openReveal(0);
         if (meta) {
           setDailyResult(meta.day, {
             correct: false,
             revealed: resp.revealed,
             score: 0,
-            percentile: fin.percentile,
             id: String(meta.puzzle.id),
-            answer: fin.answer ?? undefined,
           });
         }
-        setStatus("finished");
+        void fetch("/api/daily/finish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ revealed: resp.revealed, correct: false }),
+        })
+          .then((r) => r.json())
+          .then((fin: FinishResp) => {
+            setAnswer(fin.answer ?? null);
+            setPercentile(fin.percentile);
+            setHist(fin.histogram);
+            if (meta) {
+              setDailyResult(meta.day, {
+                correct: false,
+                revealed: resp.revealed,
+                score: 0,
+                percentile: fin.percentile,
+                id: String(meta.puzzle.id),
+                answer: fin.answer ?? undefined,
+              });
+            }
+          })
+          .catch(() => {
+            setAnswer("Answer unavailable.");
+          });
       }
     }
     setGuess("");
