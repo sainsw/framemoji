@@ -71,7 +71,7 @@ function isSubsequence(needle: string, haystack: string) {
 
 export default function DailyGame() {
   const [meta, setMeta] = useState<DailyMeta | null>(null);
-  const [reveal, setReveal] = useState(REVEAL_STEPS[0]);
+  const [reveal, setReveal] = useState<number>(REVEAL_STEPS[0]);
   const [guess, setGuess] = useState("");
   const [status, setStatus] = useState<"idle" | "correct" | "wrong" | "finished">("idle");
   const [score, setScore] = useState<number | null>(null);
