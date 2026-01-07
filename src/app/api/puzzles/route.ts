@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { PUZZLES } from "@/data/puzzles";
+import { loadPuzzles } from "@/server/puzzles";
 
-export function GET() {
-  const random = PUZZLES[Math.floor(Math.random() * PUZZLES.length)]!;
+export async function GET() {
+  const puzzles = await loadPuzzles();
+  const random = puzzles[Math.floor(Math.random() * puzzles.length)]!;
   return NextResponse.json({
-    count: PUZZLES.length,
+    count: puzzles.length,
     random,
-    puzzles: PUZZLES,
+    puzzles,
   });
 }
-
