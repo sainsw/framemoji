@@ -29,13 +29,14 @@ export function HistogramView({
       <div className="hist" style={{ ["--hist-cols" as any]: cols }}>
         {solves.map((c, i) => {
           const step = steps[i] ?? i + 1;
+          const label = labels?.[i] ?? String(step);
           const h = Math.round((c / max) * 100);
           const isMe = !failed && revealStepForCount(myReveal) === step;
           const isSelected = selectedReveal === step;
           return (
             <div
               key={i}
-              aria-label={`Solved at ${step} emoji: ${c}`}
+              aria-label={labels ? `Solved in guess ${label}: ${c}` : `Solved at ${step} emoji: ${c}`}
               className={`bar${isMe ? " me" : ""}`}
               style={{
                 background: "rgba(255,255,255,0.06)",
@@ -126,7 +127,7 @@ export function HistogramView({
       {emojiLabels && emojiLabels.length === steps.length && (
         <div className="hist-labels hist-labels-emoji" style={{ ["--hist-cols" as any]: cols }}>
           {steps.map((step, i) => (
-            <div key={step} aria-label={`${labels?.[i] ?? step} emoji revealed`}>
+            <div key={step} aria-label={`${step} emoji revealed`}>
               <span aria-hidden="true">{emojiLabels[i]}</span>
             </div>
           ))}

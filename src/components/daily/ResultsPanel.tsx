@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import type { RefObject } from "react";
 import { normalizeTitle } from "@/lib/normalize";
-import { REVEAL_STEPS } from "@/lib/reveal";
+import { REVEAL_STEPS, revealIndexForCount } from "@/lib/reveal";
 import type { DailyStats } from "@/lib/stats";
 import { Skeleton } from "@/components/common/Skeleton";
 import { HistogramView } from "./HistogramView";
@@ -46,7 +46,8 @@ export function ResultsPanel({
   resultRef: RefObject<HTMLDivElement>;
   clues: string[];
 }) {
-  const selectedRevealLabel = selectedReveal && selectedReveal > 0 ? `${selectedReveal} emoji` : undefined;
+  const selectedGuess = selectedReveal && selectedReveal > 0 ? revealIndexForCount(selectedReveal) + 1 : null;
+  const selectedRevealLabel = selectedGuess ? `guess ${selectedGuess}` : undefined;
   const hasTitle = !!(finalTitle ?? answer ?? devAnswer ?? null);
   const isLoadingPoster = hasTitle && movies.length === 0;
   const emojiLabels = (() => {
@@ -125,12 +126,12 @@ export function ResultsPanel({
           }
           return (
             <div style={{ marginTop: "1.25rem" }}>
-              <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Today's distribution</div>
+              <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Today's distribution by guess</div>
               <HistogramView
                 histogram={hist}
                 myReveal={reveal}
                 failed={!!answer}
-                labels={REVEAL_STEPS.map((step) => String(step))}
+                labels={REVEAL_STEPS.map((_, i) => String(i + 1))}
                 steps={REVEAL_STEPS}
                 selectedReveal={selectedReveal ?? undefined}
                 onSelect={onSelectReveal}
