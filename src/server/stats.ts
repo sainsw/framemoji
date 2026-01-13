@@ -68,7 +68,7 @@ export async function loadHistogram(day: string): Promise<DailyHistogram> {
       if (!field.startsWith("r")) continue;
       const raw = Number(field.slice(1));
       if (!Number.isFinite(raw) || raw <= 0) continue;
-      const idx = revealIndexForCount(raw);
+      const idx = Math.min(Math.max(raw - 1, 0), BUCKETS - 1);
       solves[idx] += Number(value || 0);
     }
     const fail = Number(map.fail || 0);
