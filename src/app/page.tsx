@@ -14,7 +14,7 @@ export default function HomePage() {
       }}
     >
       <h1>🎬 Framemoji</h1>
-      <p>One movie. Ten emoji. Play daily.</p>
+      <p>Guess the movie from emoji clues depicting the plot. Ten emoji, one film, play daily.</p>
       <DailyGame />
       <p style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.85 }}>
         <a
