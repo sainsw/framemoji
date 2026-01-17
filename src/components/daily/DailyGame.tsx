@@ -44,7 +44,7 @@ export default function DailyGame() {
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [hasGuessed, setHasGuessed] = useState(false);
   const [metaLoaded, setMetaLoaded] = useState(false);
-  const { movies } = useMovies();
+  const { movies, triggerLoad: triggerMoviesLoad } = useMovies();
   const [finalTitle, setFinalTitle] = useState<string | null>(null);
   const { solutionTitle, posterUrl } = useMovieDetails({ movies, meta, finalTitle, answer });
 
@@ -122,6 +122,8 @@ export default function DailyGame() {
             setFinalTitle(existing.title);
           }
           setStatus("finished");
+          // Load movies for poster display (archive games)
+          triggerMoviesLoad();
           // Load histogram so the chart renders on refresh
           const finishDateParam = dateKey !== todayKey ? `?date=${dateKey}` : "";
           fetch(`/api/daily/finish${finishDateParam}`)
@@ -148,7 +150,7 @@ export default function DailyGame() {
       .catch(() => {
         setMetaLoaded(true);
       });
-  }, [openReveal]);
+  }, [openReveal, triggerMoviesLoad]);
 
   // Initial load: fetch today's puzzle on mount
   useEffect(() => {
@@ -185,6 +187,8 @@ export default function DailyGame() {
               setFinalTitle(existing.title);
             }
             setStatus("finished");
+            // Load movies for poster display
+            triggerMoviesLoad();
             fetch("/api/daily/finish")
               .then((r) => r.json())
               .then((data: { total: number; histogram: Histogram }) => {
@@ -243,6 +247,10 @@ export default function DailyGame() {
   const handleGuessChange = (value: string) => {
     setGuess(value);
     setSelectedIdx(0);
+    // Lazy-load movies on first keystroke for autocomplete
+    if (value.length === 1) {
+      triggerMoviesLoad();
+    }
   };
 
   const handleDateSelect = useCallback((date: string) => {
@@ -297,6 +305,8 @@ export default function DailyGame() {
       setFinalTitle(toSend);
       setScore(resp.score);
       setReveal(resp.revealed);
+      // Load movies for poster display
+      triggerMoviesLoad();
       // Only update local streak stats for today's game
       if (isPlayingToday) {
         recordWin(resp.score);
@@ -364,6 +374,8 @@ export default function DailyGame() {
         }
         setAnswer("Loading answer...");
         setStatus("finished");
+        // Load movies for poster display
+        triggerMoviesLoad();
         openReveal(0);
         setDailyResult(meta.day, {
           correct: false,
