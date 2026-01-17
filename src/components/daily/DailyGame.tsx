@@ -43,6 +43,8 @@ export default function DailyGame() {
   const [wrongMsg, setWrongMsg] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [hasGuessed, setHasGuessed] = useState(false);
+  const [wrongGuesses, setWrongGuesses] = useState<string[]>([]);
+  const [skips, setSkips] = useState<number>(0);
   const [metaLoaded, setMetaLoaded] = useState(false);
   const { movies, triggerLoad: triggerMoviesLoad } = useMovies();
   const [finalTitle, setFinalTitle] = useState<string | null>(null);
@@ -93,6 +95,8 @@ export default function DailyGame() {
     setTopGuesses(null);
     setFinalTitle(null);
     setHasGuessed(false);
+    setWrongGuesses([]);
+    setSkips(0);
     setWrongMsg(null);
 
     fetch(`/api/daily${dateParam}`)
@@ -346,6 +350,8 @@ export default function DailyGame() {
     } else {
       setStatus("wrong");
       setFinalTitle(null);
+      // Track the wrong guess
+      setWrongGuesses((prev) => [...prev, toSend]);
       // Pick a snarky, accessible message for wrong guesses
       const WRONG_MESSAGES = [
         "Close, but no cigar. Fresh clues just dropped.",
@@ -412,6 +418,68 @@ export default function DailyGame() {
     setGuess("");
   }
 
+  async function handleSkip() {
+    if (!meta) return;
+    setHasGuessed(true);
+    setSkips((s) => s + 1);
+    
+    const dateParam = !isPlayingToday ? { date: playingDate } : {};
+    // Send a placeholder that won't match any movie
+    const resp = (await fetch("/api/daily/guess", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guess: "__SKIP__", revealed: reveal, ...dateParam }),
+    }).then((r) => r.json())) as GuessResp;
+
+    // Skip always counts as wrong
+    setStatus("wrong");
+    setWrongMsg("Skipped. More clues revealed.");
+    const wasAtTen = reveal >= REVEAL_STEPS[REVEAL_STEPS.length - 1];
+    setReveal(resp.revealed);
+    setTimeout(() => inputRef.current?.focus(), 0);
+    
+    if (wasAtTen) {
+      // Already at max clues, finish as fail
+      if (isPlayingToday) {
+        recordLoss();
+      }
+      setAnswer("Loading answer...");
+      setStatus("finished");
+      triggerMoviesLoad();
+      openReveal(0);
+      setDailyResult(meta.day, {
+        correct: false,
+        revealed: resp.revealed,
+        score: 0,
+        id: String(meta.puzzle.id),
+      });
+      setCompletedDates(getCompletedDates());
+      
+      void fetch("/api/daily/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revealed: resp.revealed, correct: false, ...dateParam }),
+      })
+        .then((r) => r.json())
+        .then((fin: FinishResp) => {
+          setAnswer(fin.answer ?? null);
+          setPercentile(fin.percentile);
+          setHist(fin.histogram);
+          setDailyResult(meta.day, {
+            correct: false,
+            revealed: resp.revealed,
+            score: 0,
+            percentile: fin.percentile,
+            id: String(meta.puzzle.id),
+            answer: fin.answer ?? undefined,
+          });
+        })
+        .catch(() => {
+          setAnswer("Answer unavailable.");
+        });
+    }
+  }
+
   // Format the date header to be clickable
   const dateLabel = meta?.day ?? playingDate ?? "…";
   const isArchive = !isPlayingToday && !!playingDate;
@@ -450,12 +518,15 @@ export default function DailyGame() {
           guess={guess}
           onGuessChange={handleGuessChange}
           onSubmit={submit}
+          onSkip={handleSkip}
           suggestions={suggestions}
           selectedIdx={selectedIdx}
           setSelectedIdx={setSelectedIdx}
           inputRef={inputRef}
           status={status}
           wrongMsg={wrongMsg}
+          wrongGuesses={wrongGuesses}
+          skips={skips}
         />
       )}
 

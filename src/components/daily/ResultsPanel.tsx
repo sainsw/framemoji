@@ -69,6 +69,24 @@ export function ResultsPanel({
     <div className="card results-glass" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
       <div className="row" style={{ alignItems: "flex-start", gap: "1rem" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Display the full emoji sequence in a grid for even wrapping */}
+          {clues && clues.length > 0 && (
+            <div 
+              style={{ 
+                display: "grid",
+                gridTemplateColumns: "repeat(5, auto)",
+                gap: "0.15em",
+                fontSize: "1.5rem",
+                marginBottom: "0.75rem",
+                width: "fit-content",
+              }}
+              aria-label={`Emoji clues: ${clues.join(" ")}`}
+            >
+              {clues.map((emoji, i) => (
+                <span key={i}>{emoji}</span>
+              ))}
+            </div>
+          )}
           {answer ? (
             <>
               <div className="status" aria-hidden="true">Answer: {solutionTitle ?? answer}</div>
@@ -168,14 +186,17 @@ export function ResultsPanel({
                       const items = topGuesses.slice(0, 10);
                       const max = Math.max(1, ...items.map((g) => g.count));
                       return items.map((g, i) => {
-                        const match = movies.find((m) => normalizeTitle(m.title) === g.key);
-                        const label = match ? `${match.title}${match.year ? ` (${match.year})` : ""}` : g.key;
+                        const isSkip = g.key === "skip";
+                        const match = !isSkip ? movies.find((m) => normalizeTitle(m.title) === g.key) : null;
+                        const label = isSkip ? "Skipped" : match ? `${match.title}${match.year ? ` (${match.year})` : ""}` : g.key;
                         const pct = Math.round((g.count / max) * 100);
                         return (
                           <div key={g.key + i} style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 14, opacity: 0.95, marginBottom: 6 }}>{i + 1}. {label}</div>
-                            <div aria-label={`${g.count} guesses`} style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 6, overflow: "hidden" }}>
-                              <div style={{ width: `${pct}%`, height: "100%", background: "var(--accent)", borderRadius: 6, opacity: 0.85 }} />
+                            <div style={{ fontSize: 14, opacity: isSkip ? 0.7 : 0.95, marginBottom: 6, fontStyle: isSkip ? "italic" : "normal" }}>
+                              {i + 1}. {label}
+                            </div>
+                            <div aria-label={`${g.count} ${isSkip ? "skips" : "guesses"}`} style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 6, overflow: "hidden" }}>
+                              <div style={{ width: `${pct}%`, height: "100%", background: isSkip ? "rgba(255,255,255,0.3)" : "var(--accent)", borderRadius: 6, opacity: 0.85 }} />
                             </div>
                           </div>
                         );
