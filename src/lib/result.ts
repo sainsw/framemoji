@@ -54,3 +54,27 @@ export function clearAllDailyResults() {
     // ignore
   }
 }
+
+/**
+ * Get all dates that have completed game results stored locally.
+ * Returns a Set of YYYY-MM-DD date strings.
+ */
+export function getCompletedDates(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  const dates = new Set<string>();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(PREFIX)) {
+        const dateKey = k.slice(PREFIX.length);
+        // Validate it looks like a date
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+          dates.add(dateKey);
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return dates;
+}

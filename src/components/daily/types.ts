@@ -1,8 +1,15 @@
 export type DailyMeta = {
   day: string;
+  isToday?: boolean;
   puzzle: { id: number; year?: number; emoji_clues: string[] };
   answer?: string; // present in dev mode
   dev?: boolean;
+  error?: string; // present on error responses
+};
+
+export type AvailableDatesResp = {
+  today: string;
+  dates: string[];
 };
 
 export type GuessResp = { correct: boolean; revealed: number; score: number };

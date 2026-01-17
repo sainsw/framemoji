@@ -26,6 +26,8 @@ export function ResultsPanel({
   remainingMs,
   resultRef,
   clues,
+  isArchive,
+  onPlayArchive,
 }: {
   answer: string | null;
   solutionTitle: string | null;
@@ -45,6 +47,8 @@ export function ResultsPanel({
   remainingMs: number | null;
   resultRef: RefObject<HTMLDivElement>;
   clues: string[];
+  isArchive?: boolean;
+  onPlayArchive?: () => void;
 }) {
   const selectedGuess = selectedReveal && selectedReveal > 0 ? revealIndexForCount(selectedReveal) + 1 : null;
   const selectedRevealLabel = selectedGuess ? `guess ${selectedGuess}` : undefined;
@@ -76,18 +80,22 @@ export function ResultsPanel({
               <div className="sr-only" aria-live="assertive" aria-atomic="true">Correct!</div>
               {solutionTitle && (
                 <>
-                  <div className="status" aria-hidden="true" style={{ marginTop: "0.5rem" }}>Today's answer: {solutionTitle}</div>
-                  <div className="sr-only" aria-live="polite" aria-atomic="true">Today's answer: {solutionTitle}</div>
+                  <div className="status" aria-hidden="true" style={{ marginTop: "0.5rem" }}>
+                    {isArchive ? "Answer" : "Today's answer"}: {solutionTitle}
+                  </div>
+                  <div className="sr-only" aria-live="polite" aria-atomic="true">
+                    {isArchive ? "Answer" : "Today's answer"}: {solutionTitle}
+                  </div>
                 </>
               )}
             </>
           )}
           <div style={{ marginTop: "0.875rem" }}>
-            {percentile !== null ? `You're better than ${percentile}% of players today.` : ""}
+            {percentile !== null ? `You're better than ${percentile}% of players${isArchive ? "" : " today"}.` : ""}
           </div>
           {hist && answer && (
             <div style={{ marginTop: "0.875rem", opacity: 0.85 }}>
-              {`You're not alone — ❌ ${hist.fail} failed today.`}
+              {`You're not alone — ❌ ${hist.fail} failed${isArchive ? "" : " today"}.`}
             </div>
           )}
           <div style={{ marginTop: "0.875rem", opacity: 0.8 }}>
@@ -126,7 +134,9 @@ export function ResultsPanel({
           }
           return (
             <div style={{ marginTop: "1.25rem" }}>
-              <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Today's distribution by guess</div>
+              <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                {isArchive ? "Distribution by guess" : "Today's distribution by guess"}
+              </div>
               <HistogramView
                 histogram={hist}
                 myReveal={reveal}
@@ -140,7 +150,9 @@ export function ResultsPanel({
               {selectedReveal === 0 && (
                 <div style={{ marginTop: "1rem" }}>
                   <div style={{ fontWeight: 600, marginBottom: 10 }}>❌ Failures</div>
-                  <div style={{ fontSize: 14, opacity: 0.95 }}>{hist.fail} players failed today.</div>
+                  <div style={{ fontSize: 14, opacity: 0.95 }}>
+                    {hist.fail} players failed{isArchive ? "" : " today"}.
+                  </div>
                 </div>
               )}
               {selectedReveal !== null && selectedReveal !== 0 && (
@@ -175,7 +187,7 @@ export function ResultsPanel({
                 </div>
               )}
               <div style={{ opacity: 0.8, marginTop: "0.75rem" }}>
-                {`Players today: ${total}`}
+                {isArchive ? `Total players: ${total}` : `Players today: ${total}`}
               </div>
             </div>
           );
@@ -218,6 +230,64 @@ export function ResultsPanel({
           })()
         ) : null}
       </div>
+
+      {/* Play Another Day invitation */}
+      {!isArchive && onPlayArchive && (
+        <div style={{ marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <button
+            type="button"
+            onClick={onPlayArchive}
+            style={{
+              width: "100%",
+              padding: "0.875rem 1rem",
+              background: "linear-gradient(135deg, rgba(124, 77, 255, 0.15), rgba(124, 77, 255, 0.08))",
+              border: "1px solid rgba(124, 77, 255, 0.3)",
+              borderRadius: "12px",
+              color: "var(--text)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+              fontSize: "0.95rem",
+              fontWeight: 500,
+              transition: "all 0.15s ease",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(124, 77, 255, 0.25), rgba(124, 77, 255, 0.15))";
+              e.currentTarget.style.borderColor = "rgba(124, 77, 255, 0.5)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(124, 77, 255, 0.15), rgba(124, 77, 255, 0.08))";
+              e.currentTarget.style.borderColor = "rgba(124, 77, 255, 0.3)";
+            }}
+          >
+            <span style={{ fontSize: "1.1rem" }}>🎬</span>
+            <span>Want more? Try an older puzzle!</span>
+          </button>
+        </div>
+      )}
+
+      {/* Return to today link for archive games */}
+      {isArchive && onPlayArchive && (
+        <div style={{ marginTop: "1rem", textAlign: "center" }}>
+          <button
+            type="button"
+            onClick={onPlayArchive}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--accent)",
+              cursor: "pointer",
+              fontSize: "0.875rem",
+              textDecoration: "underline",
+              textUnderlineOffset: "3px",
+            }}
+          >
+            ← Browse more puzzles
+          </button>
+        </div>
+      )}
     </div>
   );
 }

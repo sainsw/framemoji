@@ -7,12 +7,26 @@ export const revalidate = 0;
 import { utcDateKey } from "@/lib/daily";
 import { topGuessesKV, __debugKVGuesses } from "@/server/stats";
 
+// Date validation regex
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const reveal = Number(url.searchParams.get("reveal") || 1);
   const limit = Number(url.searchParams.get("limit") || 10);
   const debug = url.searchParams.get("debug") === "1";
-  const dateKey = utcDateKey();
+  const requestedDate = url.searchParams.get("date");
+  const today = utcDateKey();
+
+  // Validate date format if provided
+  if (requestedDate && !DATE_REGEX.test(requestedDate)) {
+    return NextResponse.json(
+      { error: "Invalid date format. Use YYYY-MM-DD." },
+      { status: 400 }
+    );
+  }
+
+  const dateKey = requestedDate || today;
   // Try KV-based top guesses first; optionally fall back to file mode when explicitly enabled
   let items: { key: string; count: number }[] = [];
   const tried: string[] = [];
