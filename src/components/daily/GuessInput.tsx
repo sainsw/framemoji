@@ -1,5 +1,17 @@
-import type { RefObject } from "react";
+import { type RefObject, useState, useEffect } from "react";
 import type { Movie } from "./types";
+
+function useIsNarrow(breakpoint = 500) {
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    setIsNarrow(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isNarrow;
+}
 
 export function GuessInput({
   guess,
@@ -28,13 +40,16 @@ export function GuessInput({
   wrongGuesses: string[];
   skips: number;
 }) {
+  const isNarrow = useIsNarrow(500);
+  const placeholder = isNarrow ? "Guess…" : "Type a movie title…";
+
   return (
     <>
       <div className="suggest-container">
         <div className="row">
           <input
             type="text"
-            placeholder="Type a movie title…"
+            placeholder={placeholder}
             value={guess}
             onChange={(e) => onGuessChange(e.target.value)}
             onKeyDown={(e) => {
@@ -76,12 +91,10 @@ export function GuessInput({
             onClick={() => void onSkip()} 
             aria-label="Skip and reveal more clues"
             title="Skip this guess and reveal more emoji"
-            style={{
-              background: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-            }}
+            className="skip-btn"
           >
-            Skip
+            <span className="skip-btn-text">Skip</span>
+            <span className="skip-btn-icon" aria-hidden="true">⏭</span>
           </button>
         </div>
         <p id="guess-instructions" className="sr-only">

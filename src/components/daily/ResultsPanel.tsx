@@ -67,26 +67,8 @@ export function ResultsPanel({
 
   return (
     <div className="card results-glass" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
-      <div className="row" style={{ alignItems: "flex-start", gap: "1rem" }}>
+      <div className="results-header-row">
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Display the full emoji sequence in a grid for even wrapping */}
-          {clues && clues.length > 0 && (
-            <div 
-              style={{ 
-                display: "grid",
-                gridTemplateColumns: "repeat(5, auto)",
-                gap: "0.15em",
-                fontSize: "1.5rem",
-                marginBottom: "0.75rem",
-                width: "fit-content",
-              }}
-              aria-label={`Emoji clues: ${clues.join(" ")}`}
-            >
-              {clues.map((emoji, i) => (
-                <span key={i}>{emoji}</span>
-              ))}
-            </div>
-          )}
           {answer ? (
             <>
               <div className="status" aria-hidden="true">Answer: {solutionTitle ?? answer}</div>
@@ -126,7 +108,7 @@ export function ResultsPanel({
           // then either render the poster or keep a neutral placeholder.
           const posterBoxStyle = { width: 140, height: 210, borderRadius: 8, overflow: "hidden" as const };
           return (
-            <div aria-hidden="true" style={{ flex: "0 0 140px" }}>
+            <div aria-hidden="true" className="results-poster" style={{ flex: "0 0 140px" }}>
               {posterUrl ? (
                 <div style={{ ...posterBoxStyle, background: "rgba(255,255,255,0.06)" }}>
                   <img src={posterUrl} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
@@ -140,6 +122,17 @@ export function ResultsPanel({
           );
         })()}
       </div>
+      {/* Display the full emoji sequence - hidden on wide screens where histogram shows emoji */}
+      {clues && clues.length > 0 && (
+        <div 
+          className="results-emoji-grid"
+          aria-label={`Emoji clues: ${clues.join(" ")}`}
+        >
+          {clues.map((emoji, i) => (
+            <span key={i}>{emoji}</span>
+          ))}
+        </div>
+      )}
       {hist ? (
         (() => {
           const total = hist.solves.reduce((a, b) => a + b, 0) + hist.fail;

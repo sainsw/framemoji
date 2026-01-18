@@ -423,6 +423,38 @@ button.secondary { background: #2a2f3a; }
   letter-spacing: 0.06em;
 }
 
+/* Emoji grid on results page - hidden on wide screens where histogram shows emoji */
+.results-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 0.1em;
+  font-size: clamp(1rem, 5vw, 1.5rem);
+  margin-top: 1rem;
+  text-align: center;
+  opacity: 0.9;
+}
+.results-emoji-grid > span {
+  display: flex;
+  justify-content: center;
+}
+
+/* Stack results header on very narrow screens to prevent poster/emoji overlap */
+.results-header-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+@media (max-width: 380px) {
+  .results-header-row {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .results-header-row .results-poster {
+    align-self: center;
+    margin-bottom: 0.5rem;
+  }
+}
+
 @media (min-width: 720px) {
   .hist-labels-number {
     display: none;
@@ -430,10 +462,35 @@ button.secondary { background: #2a2f3a; }
   .hist-labels-emoji {
     display: grid;
   }
+  .results-emoji-grid {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
   .hist { gap: 4px; height: 120px; }
   .hist-labels { gap: 4px; }
   .hist-labels > div { font-size: 18px; }
+}
+
+/* Skip button styling */
+.skip-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.skip-btn-icon {
+  display: none;
+}
+/* On narrow screens, show only icon */
+@media (max-width: 600px) {
+  .skip-btn {
+    padding: 0.75rem 0.85rem;
+  }
+  .skip-btn-text {
+    display: none;
+  }
+  .skip-btn-icon {
+    display: inline;
+    font-size: 1.1rem;
+  }
 }
