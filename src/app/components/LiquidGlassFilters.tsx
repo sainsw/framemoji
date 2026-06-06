@@ -106,13 +106,41 @@ export default function LiquidGlassFilters() {
   const [dims, setDims] = React.useState<{w: number; h: number; scale: number}>({ w: 0, h: 0, scale: 18 });
 
   React.useEffect(() => {
-    // Pick a reasonably large map so typical panels are covered.
-    // If needed, we could recompute on resize; keep simple for now.
-    const w = 1024;
-    const h = 768;
-    const { url, width, height, maxShiftPx } = generateRoundedRectDisplacementMap({ width: w, height: h, radius: 14, bezel: 14, maxShiftPx: 18 });
-    setMapUrl(url);
-    setDims({ w: width, h: height, scale: maxShiftPx });
+    // The displacement map is purely decorative (the results-panel glass
+    // refraction). Generating it is a long, synchronous main-thread task
+    // (a per-pixel loop + canvas.toDataURL), so we must keep it off the
+    // critical path: skip it for reduced-motion users, and otherwise defer
+    // it to idle time so it never competes with hydration / LCP.
+    if (typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    let cancelled = false;
+    const build = () => {
+      if (cancelled) return;
+      // Half-resolution map (vs 1024x768): ~4x less per-pixel work, with radius
+      // and bezel scaled to match so the bezel proportions are preserved.
+      const { url, width, height, maxShiftPx } = generateRoundedRectDisplacementMap({
+        width: 512,
+        height: 384,
+        radius: 7,
+        bezel: 7,
+        maxShiftPx: 18,
+      });
+      if (cancelled) return;
+      setMapUrl(url);
+      setDims({ w: width, h: height, scale: maxShiftPx });
+    };
+
+    const hasIdle = typeof window.requestIdleCallback === "function";
+    const handle = hasIdle
+      ? window.requestIdleCallback(build, { timeout: 2000 })
+      : window.setTimeout(build, 200);
+
+    return () => {
+      cancelled = true;
+      if (hasIdle) window.cancelIdleCallback(handle as number);
+      else window.clearTimeout(handle as number);
+    };
   }, []);
 
   // Render the filter only when the map exists (client-only)

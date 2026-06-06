@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "prebuild": "node ./scripts/fetch-avatar.mjs",
+    "prebuild": "node ./scripts/fetch-avatar.mjs && node ./scripts/build-movies-min.mjs",
+    "build:movies": "node ./scripts/build-movies-min.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

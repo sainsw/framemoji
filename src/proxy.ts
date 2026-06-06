@@ -19,5 +19,9 @@ export function proxy() {
 }
 
 export const config = {
-  matcher: "/:path*",
+  // Run only on documents/API responses — skip Next internals and any static
+  // asset (paths containing a dot, e.g. /images/*, /data/*.json, /icon.svg,
+  // /sitemap.xml). These don't need the document security headers and were
+  // adding needless latency to every asset.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.).*)"],
 };

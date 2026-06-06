@@ -54,6 +54,17 @@ export async function GET(req: Request) {
     await pinDailyIdIfAbsent(dateKey, p.id);
   }
 
+  // The puzzle for a given day is identical for every visitor and fixed until
+  // the next UTC midnight, so it's safe to cache publicly at the CDN:
+  //  - today: expire exactly at rollover so the new puzzle is picked up
+  //  - archive dates: immutable, cache hard
+  // Dev mode embeds the answer, so never cache those responses.
+  const cacheControl = devMode
+    ? "no-store"
+    : isToday
+      ? `public, s-maxage=${secondsUntilUtcMidnight()}, stale-while-revalidate=60`
+      : "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
+
   return NextResponse.json(
     {
       day: dateKey,
@@ -67,6 +78,21 @@ export async function GET(req: Request) {
       answer: devMode ? p.title : undefined,
       dev: devMode,
     },
-    { headers: { "Cache-Control": "no-store" } }
+    { headers: { "Cache-Control": cacheControl } }
   );
+}
+
+/** Seconds remaining until the next UTC midnight (min 1). */
+function secondsUntilUtcMidnight(): number {
+  const now = new Date();
+  const next = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0,
+    0,
+    0,
+    0
+  );
+  return Math.max(1, Math.ceil((next - now.getTime()) / 1000));
 }
