@@ -16,7 +16,7 @@ Play the deployed version at https://framemoji.ainsworth.dev.
 ## Structure
 
 - `src/app/page.tsx`: Home page with the game
-- `src/components/Game.tsx`: Client-side game logic/UI
+- `src/components/DailyGame.tsx`: Client-side game logic/UI
 - `data/puzzles.json`: Emoji→movie dataset (JSON schema below)
 - `src/app/api/puzzles/route.ts`: Example API returning puzzles
 - `src/styles/globals.css`: Minimal styling
