@@ -1,16 +1,22 @@
-import { type RefObject, useState, useEffect } from "react";
+import { type RefObject, useCallback, useSyncExternalStore } from "react";
 import type { Movie } from "./types";
 
 function useIsNarrow(breakpoint = 500) {
-  const [isNarrow, setIsNarrow] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsNarrow(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, [breakpoint]);
-  return isNarrow;
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    [breakpoint],
+  );
+  const getSnapshot = useCallback(
+    () => window.matchMedia(`(max-width: ${breakpoint}px)`).matches,
+    [breakpoint],
+  );
+  // Server has no viewport; default to the wide layout to match initial render.
+  const getServerSnapshot = () => false;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
 export function GuessInput({

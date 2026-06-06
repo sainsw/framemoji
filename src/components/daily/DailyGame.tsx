@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { recordLoss, recordWin, loadStats, type DailyStats } from "@/lib/stats";
-import { getDailyResult, setDailyResult, getCompletedDates } from "@/lib/result";
+import { getDailyResult, setDailyResult } from "@/lib/result";
 import { msUntilNextUtcMidnight } from "@/lib/date";
 import { REVEAL_STEPS, revealStepForCount } from "@/lib/reveal";
 import { DatePickerPopover } from "./DatePickerPopover";
@@ -11,150 +11,174 @@ import { EmojiGrid } from "./EmojiGrid";
 import { GuessInput } from "./GuessInput";
 import { GuessMeter } from "./GuessMeter";
 import { ResultsPanel } from "./ResultsPanel";
+import { useDatePicker } from "./hooks/useDatePicker";
+import { useGameReducer, getRandomWrongMessage } from "./hooks/useGameReducer";
 import { useMovieDetails } from "./hooks/useMovieDetails";
 import { useMovies } from "./hooks/useMovies";
 import { filterSuggestions } from "./utils/suggestions";
-import type { AvailableDatesResp, DailyMeta, FinishResp, GuessResp, Histogram, TopGuess } from "./types";
+import type { DailyMeta, FinishResp, GuessResp, TopGuess } from "./types";
 
 export default function DailyGame() {
-  // Date selection state
-  const [today, setToday] = useState<string>("");
-  const [playingDate, setPlayingDate] = useState<string>("");
-  const [availableDates, setAvailableDates] = useState<Set<string>>(new Set());
-  const [completedDates, setCompletedDates] = useState<Set<string>>(new Set());
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  // ─────────────────────────────────────────────────────────────────────────
+  // Hooks
+  // ─────────────────────────────────────────────────────────────────────────
+  const datePicker = useDatePicker();
+  const [state, dispatch] = useGameReducer();
+  const { movies, triggerLoad: triggerMoviesLoad } = useMovies();
+  const { solutionTitle, posterUrl } = useMovieDetails({
+    movies,
+    meta: state.meta,
+    finalTitle: state.finalTitle,
+    answer: state.answer,
+  });
 
-  // Game state
-  const [meta, setMeta] = useState<DailyMeta | null>(null);
-  const [reveal, setReveal] = useState<number>(REVEAL_STEPS[0]);
+  // ─────────────────────────────────────────────────────────────────────────
+  // Local state (UI-only, not part of game logic)
+  // ─────────────────────────────────────────────────────────────────────────
   const [guess, setGuess] = useState("");
-  const [status, setStatus] = useState<"idle" | "correct" | "wrong" | "finished">("idle");
-  const [score, setScore] = useState<number | null>(null);
-  const [percentile, setPercentile] = useState<number | null>(null);
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [hist, setHist] = useState<Histogram | null>(null);
-  const [selectedReveal, setSelectedReveal] = useState<number | null>(null);
-  const [topGuesses, setTopGuesses] = useState<TopGuess[] | null>(null);
-  const [guessesLoading, setGuessesLoading] = useState<boolean>(false);
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const [stats, setStats] = useState<DailyStats | null>(null);
-  const [selectedIdx, setSelectedIdx] = useState<number>(0);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null!);
-  const [wrongMsg, setWrongMsg] = useState<string | null>(null);
-  const [remainingMs, setRemainingMs] = useState<number | null>(null);
-  const [hasGuessed, setHasGuessed] = useState(false);
-  const [wrongGuesses, setWrongGuesses] = useState<string[]>([]);
-  const [skips, setSkips] = useState<number>(0);
-  const [metaLoaded, setMetaLoaded] = useState(false);
-  const { movies, triggerLoad: triggerMoviesLoad } = useMovies();
-  const [finalTitle, setFinalTitle] = useState<string | null>(null);
-  const { solutionTitle, posterUrl } = useMovieDetails({ movies, meta, finalTitle, answer });
 
-  const isPlayingToday = playingDate === today;
+  // Track previous playingDate to detect date switches
+  const prevPlayingDateRef = useRef<string | null>(null);
+
+  // Derived values
+  const { today, playingDate, isPlayingToday, isArchive } = datePicker;
+  const clues = useMemo(() => state.meta?.puzzle.emoji_clues ?? [], [state.meta]);
+  const shown = useMemo(() => clues.slice(0, state.reveal).join(""), [clues, state.reveal]);
+  const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
+  const animateEmoji = state.metaLoaded;
+  const dateLabel = state.meta?.day ?? playingDate ?? "…";
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helpers
+  // ─────────────────────────────────────────────────────────────────────────
 
   const openReveal = useCallback((rev: number, dateOverride?: string) => {
     const dateKey = dateOverride ?? playingDate;
-    if (rev === 0) {
-      setSelectedReveal(0);
-      setTopGuesses(null);
-      return;
-    }
+    dispatch({ type: "OPEN_REVEAL", reveal: rev });
+    
+    if (rev === 0) return;
+    
     const r = revealStepForCount(rev);
-    setSelectedReveal(r);
-    setGuessesLoading(true);
-    setTopGuesses(null);
     const dateParam = dateKey && dateKey !== today ? `&date=${dateKey}` : "";
     fetch(`/api/daily/guesses?reveal=${r}&limit=10${dateParam}`)
       .then((res) => res.json())
-      .then((data: { reveal: number; items: TopGuess[] }) => setTopGuesses(data.items))
-      .catch(() => setTopGuesses([]))
-      .finally(() => setGuessesLoading(false));
-  }, [playingDate, today]);
+      .then((data: { reveal: number; items: TopGuess[] }) => {
+        dispatch({ type: "SET_TOP_GUESSES", items: data.items });
+      })
+      .catch(() => {
+        dispatch({ type: "SET_TOP_GUESSES", items: [] });
+      });
+  }, [playingDate, today, dispatch]);
 
-  // Load completed dates from local storage on mount
-  useEffect(() => {
-    let cancelled = false;
-    Promise.resolve().then(() => {
-      if (!cancelled) setCompletedDates(getCompletedDates());
+  /**
+   * Shared logic for finishing a game as a loss.
+   * Called by both submit() and handleSkip() when the user runs out of guesses.
+   */
+  const finishAsLoss = useCallback((revealed: number, meta: DailyMeta) => {
+    if (isPlayingToday) {
+      recordLoss();
+    }
+    dispatch({ type: "FINISH_LOSE", revealed });
+    triggerMoviesLoad();
+    openReveal(0);
+    setDailyResult(meta.day, {
+      correct: false,
+      revealed,
+      score: 0,
+      id: String(meta.puzzle.id),
     });
-    return () => { cancelled = true; };
-  }, []);
+    datePicker.refreshCompletedDates();
 
-  // Load puzzle when playingDate changes
+    const dateParam = !isPlayingToday ? { date: playingDate } : {};
+    void fetch("/api/daily/finish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ revealed, correct: false, ...dateParam }),
+    })
+      .then((r) => r.json())
+      .then((fin: FinishResp) => {
+        dispatch({ type: "SET_ANSWER", answer: fin.answer ?? "Answer unavailable." });
+        dispatch({ type: "SET_PERCENTILE", percentile: fin.percentile });
+        dispatch({ type: "SET_HISTOGRAM", hist: fin.histogram });
+        setDailyResult(meta.day, {
+          correct: false,
+          revealed,
+          score: 0,
+          percentile: fin.percentile,
+          id: String(meta.puzzle.id),
+          answer: fin.answer ?? undefined,
+        });
+      })
+      .catch(() => {
+        dispatch({ type: "SET_ANSWER", answer: "Answer unavailable." });
+      });
+  }, [isPlayingToday, playingDate, dispatch, triggerMoviesLoad, openReveal, datePicker]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Load puzzle
+  // ─────────────────────────────────────────────────────────────────────────
+
   const loadPuzzle = useCallback((dateKey: string, todayKey: string) => {
     const dateParam = dateKey !== todayKey ? `?date=${dateKey}` : "";
-    setMetaLoaded(false);
-    setMeta(null);
-    setStatus("idle");
-    setReveal(REVEAL_STEPS[0]);
-    setScore(null);
-    setPercentile(null);
-    setAnswer(null);
-    setHist(null);
-    setSelectedReveal(null);
-    setTopGuesses(null);
-    setFinalTitle(null);
-    setHasGuessed(false);
-    setWrongGuesses([]);
-    setSkips(0);
-    setWrongMsg(null);
+    dispatch({ type: "LOAD_START" });
 
     fetch(`/api/daily${dateParam}`)
       .then((r) => r.json())
       .then((d: DailyMeta) => {
         if (d.error) {
           console.error("Failed to load puzzle:", d.error);
-          setMetaLoaded(true);
+          dispatch({ type: "LOAD_ERROR" });
           return;
         }
-        setMeta(d);
+        dispatch({ type: "LOAD_SUCCESS", meta: d });
+        
         // Update today if we didn't have it yet
         if (!todayKey && d.isToday) {
-          setToday(d.day);
+          datePicker.setToday(d.day);
         }
 
-        // If user already finished this puzzle, show the stored result immediately
+        // If user already finished this puzzle, restore the finished state
         const existing = getDailyResult(d.day);
         if (existing) {
-          setReveal(revealStepForCount(existing.revealed));
-          setScore(existing.score);
-          setPercentile(existing.percentile ?? null);
-          setAnswer(existing.answer ?? null);
-          // If previously won, use stored title so we can
-          // show the answer and poster on reload.
-          if (existing.correct && existing.title) {
-            setFinalTitle(existing.title);
-          }
-          setStatus("finished");
-          // Load movies for poster display (archive games)
+          dispatch({
+            type: "RESTORE_FINISHED",
+            reveal: existing.revealed,
+            score: existing.score,
+            percentile: existing.percentile ?? null,
+            answer: existing.answer ?? null,
+            finalTitle: existing.correct && existing.title ? existing.title : null,
+          });
           triggerMoviesLoad();
+          
           // Load histogram so the chart renders on refresh
           const finishDateParam = dateKey !== todayKey ? `?date=${dateKey}` : "";
           fetch(`/api/daily/finish${finishDateParam}`)
             .then((r) => r.json())
-            .then((data: { total: number; histogram: Histogram }) => {
-              setHist(data.histogram);
+            .then((data: { total: number; histogram: { solves: number[]; fail: number } }) => {
+              dispatch({ type: "SET_HISTOGRAM", hist: data.histogram });
               openReveal(existing.correct ? revealStepForCount(existing.revealed) : 0, dateKey);
             })
             .catch(() => {
               openReveal(existing.correct ? revealStepForCount(existing.revealed) : 0, dateKey);
             });
-        } else {
-          setReveal(REVEAL_STEPS[0]);
-          setStatus("idle");
-          setScore(null);
-          setPercentile(null);
-          setAnswer(null);
-          setHasGuessed(false);
         }
-        setMetaLoaded(true);
-        // focus input on load
+        
+        // Focus input on load
         setTimeout(() => inputRef.current?.focus(), 0);
       })
       .catch(() => {
-        setMetaLoaded(true);
+        dispatch({ type: "LOAD_ERROR" });
       });
-  }, [openReveal, triggerMoviesLoad]);
+  }, [dispatch, datePicker, triggerMoviesLoad, openReveal]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Effects
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Initial load: fetch today's puzzle on mount
   useEffect(() => {
@@ -162,91 +186,96 @@ export default function DailyGame() {
     Promise.resolve().then(() => {
       if (cancelled) return;
       setStats(loadStats());
-      // Fetch today's puzzle (no date param)
-      setMetaLoaded(false);
+      dispatch({ type: "LOAD_START" });
+      
       fetch("/api/daily")
         .then((r) => r.json())
         .then((d: DailyMeta) => {
           if (cancelled) return;
           if (d.error) {
             console.error("Failed to load puzzle:", d.error);
-            setMetaLoaded(true);
+            dispatch({ type: "LOAD_ERROR" });
             return;
           }
+          
           // Set today and playingDate from the response
           if (d.isToday !== false) {
-            setToday(d.day);
-            setPlayingDate(d.day);
+            datePicker.setToday(d.day);
+            datePicker.setPlayingDate(d.day);
           }
-          setMeta(d);
-          
-          // If user already finished this puzzle, show the stored result
+          dispatch({ type: "LOAD_SUCCESS", meta: d });
+
+          // If user already finished this puzzle, restore the finished state
           const existing = getDailyResult(d.day);
           if (existing) {
-            setReveal(revealStepForCount(existing.revealed));
-            setScore(existing.score);
-            setPercentile(existing.percentile ?? null);
-            setAnswer(existing.answer ?? null);
-            if (existing.correct && existing.title) {
-              setFinalTitle(existing.title);
-            }
-            setStatus("finished");
-            // Load movies for poster display
+            dispatch({
+              type: "RESTORE_FINISHED",
+              reveal: existing.revealed,
+              score: existing.score,
+              percentile: existing.percentile ?? null,
+              answer: existing.answer ?? null,
+              finalTitle: existing.correct && existing.title ? existing.title : null,
+            });
             triggerMoviesLoad();
+            
             fetch("/api/daily/finish")
               .then((r) => r.json())
-              .then((data: { total: number; histogram: Histogram }) => {
+              .then((data: { total: number; histogram: { solves: number[]; fail: number } }) => {
                 if (cancelled) return;
-                setHist(data.histogram);
+                dispatch({ type: "SET_HISTOGRAM", hist: data.histogram });
                 openReveal(existing.correct ? revealStepForCount(existing.revealed) : 0, d.day);
               })
               .catch(() => {
                 openReveal(existing.correct ? revealStepForCount(existing.revealed) : 0, d.day);
               });
-          } else {
-            setReveal(REVEAL_STEPS[0]);
-            setStatus("idle");
-            setHasGuessed(false);
           }
-          setMetaLoaded(true);
+          
           setTimeout(() => inputRef.current?.focus(), 0);
         })
         .catch(() => {
-          if (!cancelled) setMetaLoaded(true);
+          if (!cancelled) dispatch({ type: "LOAD_ERROR" });
         });
     });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
 
-  // Load puzzle when switching to a different date
+  // Load puzzle when switching to a different date (including back to today)
   useEffect(() => {
-    // Skip if this is the initial load (no today yet) or if we're on today already
-    if (!today || !playingDate || playingDate === today) return;
-    // Only trigger for archive dates
+    if (!today || !playingDate) return;
+    
+    const prevDate = prevPlayingDateRef.current;
+    prevPlayingDateRef.current = playingDate;
+    
+    // Skip on initial mount (prevDate is null)
+    if (prevDate === null) return;
+    
+    // Skip if date hasn't actually changed
+    if (prevDate === playingDate) return;
+    
+    // Load the puzzle for the new date (archive or today)
     loadPuzzle(playingDate, today);
   }, [playingDate, today, loadPuzzle]);
 
-  // Move focus to results panel when the game finishes so screen readers announce it
+  // Move focus to results panel when the game finishes
   useEffect(() => {
-    if (status === "finished") {
+    if (state.status === "finished") {
       setTimeout(() => resultRef.current?.focus(), 0);
     }
-  }, [status]);
+  }, [state.status]);
 
   // Tick countdown to next UTC midnight when finished (only for today's game)
   useEffect(() => {
-    if (status !== "finished" || !isPlayingToday) return;
+    if (state.status !== "finished" || !isPlayingToday) return;
     const update = () => setRemainingMs(msUntilNextUtcMidnight());
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [status, isPlayingToday]);
+  }, [state.status, isPlayingToday]);
 
-  const clues = useMemo(() => meta?.puzzle.emoji_clues ?? [], [meta]);
-  const shown = useMemo(() => clues.slice(0, reveal).join(""), [clues, reveal]);
-  const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
-  const animateEmoji = metaLoaded;
+  // ─────────────────────────────────────────────────────────────────────────
+  // Event handlers
+  // ─────────────────────────────────────────────────────────────────────────
 
   const handleGuessChange = (value: string) => {
     setGuess(value);
@@ -257,61 +286,22 @@ export default function DailyGame() {
     }
   };
 
-  const handleDateSelect = useCallback((date: string) => {
-    setPlayingDate(date);
-    setDatePickerOpen(false);
-  }, []);
-
-  const [datesLoading, setDatesLoading] = useState(false);
-  const [datesLoaded, setDatesLoaded] = useState(false);
-
-  const handleOpenDatePicker = useCallback(() => {
-    // Refresh completed dates before opening
-    setCompletedDates(getCompletedDates());
-    setDatePickerOpen(true);
-    
-    // Lazy load available dates on first open
-    if (!datesLoaded && !datesLoading) {
-      setDatesLoading(true);
-      fetch("/api/daily/dates")
-        .then((r) => r.json())
-        .then((data: AvailableDatesResp) => {
-          setAvailableDates(new Set(data.dates));
-          // Update today if we have it from this response
-          if (data.today && !today) {
-            setToday(data.today);
-          }
-          setDatesLoaded(true);
-        })
-        .catch(() => {
-          // Failed to load, user can still select today
-        })
-        .finally(() => {
-          setDatesLoading(false);
-        });
-    }
-  }, [datesLoaded, datesLoading, today]);
-
   async function submit(forcedTitle?: string) {
     const toSend = (forcedTitle ?? guess).trim();
+    const meta = state.meta;
     if (!toSend || !meta) return;
-    setHasGuessed(true);
-    
+
     const dateParam = !isPlayingToday ? { date: playingDate } : {};
     const resp = (await fetch("/api/daily/guess", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guess: toSend, revealed: reveal, ...dateParam }),
+      body: JSON.stringify({ guess: toSend, revealed: state.reveal, ...dateParam }),
     }).then((r) => r.json())) as GuessResp;
 
     if (resp.correct) {
-      setStatus("correct");
-      setFinalTitle(toSend);
-      setScore(resp.score);
-      setReveal(resp.revealed);
-      // Load movies for poster display
+      dispatch({ type: "FINISH_WIN", score: resp.score, revealed: resp.revealed, finalTitle: toSend });
       triggerMoviesLoad();
-      // Only update local streak stats for today's game
+      
       if (isPlayingToday) {
         recordWin(resp.score);
       }
@@ -322,9 +312,8 @@ export default function DailyGame() {
         title: toSend,
         id: String(meta.puzzle.id),
       });
-      setCompletedDates(getCompletedDates());
-      setStatus("finished");
-      
+      datePicker.refreshCompletedDates();
+
       void fetch("/api/daily/finish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -332,8 +321,8 @@ export default function DailyGame() {
       })
         .then((r) => r.json())
         .then((fin: FinishResp) => {
-          setPercentile(fin.percentile);
-          setHist(fin.histogram);
+          dispatch({ type: "SET_PERCENTILE", percentile: fin.percentile });
+          dispatch({ type: "SET_HISTOGRAM", hist: fin.histogram });
           openReveal(resp.revealed);
           setDailyResult(meta.day, {
             correct: true,
@@ -348,141 +337,40 @@ export default function DailyGame() {
           // ignore finish errors; user can still see their result
         });
     } else {
-      setStatus("wrong");
-      setFinalTitle(null);
-      // Track the wrong guess
-      setWrongGuesses((prev) => [...prev, toSend]);
-      // Pick a snarky, accessible message for wrong guesses
-      const WRONG_MESSAGES = [
-        "Close, but no cigar. Fresh clues just dropped.",
-        "Not quite. Unlocking more emoji…",
-        "Swing and a miss — here are more hints.",
-        "Nice try! Here come extra clues.",
-        "Good guess, wrong movie. More emoji revealed.",
-        "So close. Ok, extra emoji incoming.",
-        "Plot twist: that wasn't it. New clues revealed!",
-        "Almost! A couple more pictograms to help.",
-        "Nope. The emoji council grants you more.",
-        "Incorrect. Let's sweeten it with extra emoji.",
-        "Not this time — enjoy more clues.",
-        "Incorrect guess. More hints just dropped.",
-      ];
-      setWrongMsg(WRONG_MESSAGES[Math.floor(Math.random() * WRONG_MESSAGES.length)]!);
-      const wasAtTen = reveal >= REVEAL_STEPS[REVEAL_STEPS.length - 1]; // had all emoji before this guess
-      setReveal(resp.revealed);
-      // After a wrong guess, return focus to the input so the
-      // user can immediately type their next attempt.
+      const wasAtMax = state.reveal >= REVEAL_STEPS[REVEAL_STEPS.length - 1];
+      dispatch({ type: "GUESS_WRONG", revealed: resp.revealed, wrongMsg: getRandomWrongMessage(), guess: toSend });
       setTimeout(() => inputRef.current?.focus(), 0);
-      if (wasAtTen) {
-        // Already at 10 and guessed wrong again → finish as fail
-        if (isPlayingToday) {
-          recordLoss();
-        }
-        setAnswer("Loading answer...");
-        setStatus("finished");
-        // Load movies for poster display
-        triggerMoviesLoad();
-        openReveal(0);
-        setDailyResult(meta.day, {
-          correct: false,
-          revealed: resp.revealed,
-          score: 0,
-          id: String(meta.puzzle.id),
-        });
-        setCompletedDates(getCompletedDates());
-        
-        void fetch("/api/daily/finish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ revealed: resp.revealed, correct: false, ...dateParam }),
-        })
-          .then((r) => r.json())
-          .then((fin: FinishResp) => {
-            setAnswer(fin.answer ?? null);
-            setPercentile(fin.percentile);
-            setHist(fin.histogram);
-            setDailyResult(meta.day, {
-              correct: false,
-              revealed: resp.revealed,
-              score: 0,
-              percentile: fin.percentile,
-              id: String(meta.puzzle.id),
-              answer: fin.answer ?? undefined,
-            });
-          })
-          .catch(() => {
-            setAnswer("Answer unavailable.");
-          });
+
+      if (wasAtMax) {
+        finishAsLoss(resp.revealed, meta);
       }
     }
     setGuess("");
   }
 
   async function handleSkip() {
+    const meta = state.meta;
     if (!meta) return;
-    setHasGuessed(true);
-    setSkips((s) => s + 1);
-    
+
     const dateParam = !isPlayingToday ? { date: playingDate } : {};
-    // Send a placeholder that won't match any movie
     const resp = (await fetch("/api/daily/guess", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guess: "__SKIP__", revealed: reveal, ...dateParam }),
+      body: JSON.stringify({ guess: "__SKIP__", revealed: state.reveal, ...dateParam }),
     }).then((r) => r.json())) as GuessResp;
 
-    // Skip always counts as wrong
-    setStatus("wrong");
-    setWrongMsg("Skipped. More clues revealed.");
-    const wasAtTen = reveal >= REVEAL_STEPS[REVEAL_STEPS.length - 1];
-    setReveal(resp.revealed);
+    const wasAtMax = state.reveal >= REVEAL_STEPS[REVEAL_STEPS.length - 1];
+    dispatch({ type: "SKIP", revealed: resp.revealed });
     setTimeout(() => inputRef.current?.focus(), 0);
-    
-    if (wasAtTen) {
-      // Already at max clues, finish as fail
-      if (isPlayingToday) {
-        recordLoss();
-      }
-      setAnswer("Loading answer...");
-      setStatus("finished");
-      triggerMoviesLoad();
-      openReveal(0);
-      setDailyResult(meta.day, {
-        correct: false,
-        revealed: resp.revealed,
-        score: 0,
-        id: String(meta.puzzle.id),
-      });
-      setCompletedDates(getCompletedDates());
-      
-      void fetch("/api/daily/finish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revealed: resp.revealed, correct: false, ...dateParam }),
-      })
-        .then((r) => r.json())
-        .then((fin: FinishResp) => {
-          setAnswer(fin.answer ?? null);
-          setPercentile(fin.percentile);
-          setHist(fin.histogram);
-          setDailyResult(meta.day, {
-            correct: false,
-            revealed: resp.revealed,
-            score: 0,
-            percentile: fin.percentile,
-            id: String(meta.puzzle.id),
-            answer: fin.answer ?? undefined,
-          });
-        })
-        .catch(() => {
-          setAnswer("Answer unavailable.");
-        });
+
+    if (wasAtMax) {
+      finishAsLoss(resp.revealed, meta);
     }
   }
 
-  // Format the date header to be clickable
-  const dateLabel = meta?.day ?? playingDate ?? "…";
-  const isArchive = !isPlayingToday && !!playingDate;
+  // ─────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <section className="card">
@@ -490,7 +378,7 @@ export default function DailyGame() {
         <button 
           type="button"
           className="date-header-btn"
-          onClick={handleOpenDatePicker}
+          onClick={datePicker.openDatePicker}
           aria-label={`Current puzzle: ${dateLabel}. Click to select a different date.`}
         >
           <span className="status">
@@ -501,19 +389,19 @@ export default function DailyGame() {
       </div>
       <div className="spacer" />
 
-      {status !== "finished" && (
+      {state.status !== "finished" && (
         <>
-          <EmojiGrid clues={clues} reveal={reveal} animate={animateEmoji} />
-          <GuessMeter reveal={reveal} hasGuessed={hasGuessed} />
+          <EmojiGrid clues={clues} reveal={state.reveal} animate={animateEmoji} />
+          <GuessMeter reveal={state.reveal} hasGuessed={state.hasGuessed} />
           {/* Screen reader-friendly live summary of shown clues */}
           <div className="sr-only" aria-live="polite" aria-atomic="true">
-            {`Clues shown (${reveal}/10): ${shown}`}
+            {`Clues shown (${state.reveal}/10): ${shown}`}
           </div>
           <div className="spacer" />
         </>
       )}
 
-      {status !== "finished" && (
+      {state.status !== "finished" && (
         <GuessInput
           guess={guess}
           onGuessChange={handleGuessChange}
@@ -523,50 +411,50 @@ export default function DailyGame() {
           selectedIdx={selectedIdx}
           setSelectedIdx={setSelectedIdx}
           inputRef={inputRef}
-          status={status}
-          wrongMsg={wrongMsg}
-          wrongGuesses={wrongGuesses}
-          skips={skips}
+          status={state.status}
+          wrongMsg={state.wrongMsg}
+          wrongGuesses={state.wrongGuesses}
+          skips={state.skips}
         />
       )}
 
-      {status === "finished" && (
+      {state.status === "finished" && (
         <ResultsPanel
-          answer={answer}
+          answer={state.answer}
           solutionTitle={solutionTitle}
-          percentile={percentile}
-          score={score}
-          reveal={reveal}
-          hist={hist}
-          selectedReveal={selectedReveal}
+          percentile={state.percentile}
+          score={state.score}
+          reveal={state.reveal}
+          hist={state.hist}
+          selectedReveal={state.selectedReveal}
           onSelectReveal={openReveal}
-          guessesLoading={guessesLoading}
-          topGuesses={topGuesses}
+          guessesLoading={state.guessesLoading}
+          topGuesses={state.topGuesses}
           movies={movies}
           posterUrl={posterUrl}
-          finalTitle={finalTitle}
-          devAnswer={meta?.answer ?? null}
+          finalTitle={state.finalTitle}
+          devAnswer={state.meta?.answer ?? null}
           stats={stats}
           remainingMs={isPlayingToday ? remainingMs : null}
           resultRef={resultRef}
           clues={clues}
           isArchive={isArchive}
-          onPlayArchive={handleOpenDatePicker}
+          onPlayArchive={datePicker.openDatePicker}
         />
       )}
 
-      <DevToolsFooter meta={meta} />
+      <DevToolsFooter meta={state.meta} />
 
       {today && (
         <DatePickerPopover
-          open={datePickerOpen}
-          onClose={() => setDatePickerOpen(false)}
+          open={datePicker.datePickerOpen}
+          onClose={datePicker.closeDatePicker}
           selectedDate={playingDate || today}
-          onSelectDate={handleDateSelect}
-          availableDates={availableDates}
-          completedDates={completedDates}
+          onSelectDate={datePicker.handleDateSelect}
+          availableDates={datePicker.availableDates}
+          completedDates={datePicker.completedDates}
           today={today}
-          loading={datesLoading}
+          loading={datePicker.datesLoading}
         />
       )}
 
@@ -584,12 +472,10 @@ export default function DailyGame() {
           transition: background 0.15s;
           color: inherit;
           font: inherit;
-          /* Safari button reset */
           -webkit-appearance: none;
           appearance: none;
           position: relative;
           z-index: 1;
-          /* Ensure touch target is clickable */
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
         }
