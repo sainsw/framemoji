@@ -32,6 +32,7 @@ export const metadata: Metadata = {
         url: socialImage,
         width: 1200,
         height: 630,
+        type: "image/png",
         alt: `${siteName} social preview`,
       },
     ],
@@ -41,6 +42,7 @@ export const metadata: Metadata = {
     title: siteTitle,
     description: siteDescription,
     images: [socialImage],
+    site: "@samainsworth",
     creator: "@samainsworth",
   },
   robots: {
