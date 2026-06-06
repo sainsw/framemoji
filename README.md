@@ -63,14 +63,13 @@ Each entry in `data/puzzles.json`:
 
 ## Percentile storage
 
-- By default (local dev), stats are stored in the filesystem at `var/stats/YYYY-MM-DD.json`.
-- In production, enable Vercel KV (Upstash Redis) by setting:
-  - `KV_REST_API_URL`
-  - `KV_REST_API_TOKEN`
-  - Optional: `EMOVI_USE_FILE_STATS=1` to force file-mode even if KV is configured.
-- Keys used in KV:
-  - `framemoji:YYYY-MM-DD:solves` (hash fields `r1..r10`, `fail`)
-  - `framemoji:YYYY-MM-DD:guesses:rN` (sorted set of normalized guesses; scores = counts)
+- By default (local dev), stats are stored in the filesystem at `var/stats/YYYY-MM-DD.json` and pinned puzzles at `var/daily/YYYY-MM-DD.json`.
+- In production, the daily game uses Neon Postgres. A connection string is read from the standard Vercel/Neon env vars (first match wins): `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `DATABASE_URL_UNPOOLED`, `POSTGRES_URL_NO_SSL`.
+  - Optional: `EMOVI_USE_FILE_STATS=1` to force file-mode even if Postgres is configured.
+- Create the tables once with `npm run db:init` (or rely on the lazy `CREATE TABLE IF NOT EXISTS` run on first request). Tables:
+  - `daily_pins(day, puzzle_id)` — the pinned puzzle per UTC day.
+  - `daily_solves(day, bucket, count)` — solve counts per reveal-step bucket; `bucket = -1` is a failed attempt.
+  - `daily_guesses(day, reveal, guess_key, count)` — popularity of normalized guesses per reveal bucket.
 
 ## Autocomplete data (TMDB)
 

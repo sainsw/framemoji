@@ -163,108 +163,78 @@ describe("availableDates (file mode)", () => {
   });
 });
 
-describe("availableDates (KV mode)", () => {
-  const mockFetch = vi.fn();
-  
+describe("availableDates (Postgres mode)", () => {
+  const mockSql = vi.fn();
+
+  async function getModulePg() {
+    vi.resetModules();
+    vi.doMock("fs/promises", () => ({
+      readdir: mockReaddir,
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      default: {
+        readdir: mockReaddir,
+        mkdir: vi.fn(),
+        readFile: vi.fn(),
+        writeFile: vi.fn(),
+      },
+    }));
+    vi.doMock("../db", () => ({
+      hasPg: () => true,
+      ensureSchema: vi.fn().mockResolvedValue(undefined),
+      getSql: () => mockSql,
+    }));
+    return await import("../availableDates");
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockReaddir.mockReset();
-    // Set up KV environment
-    process.env.KV_REST_API_URL = "https://test-kv.upstash.io";
-    process.env.KV_REST_API_TOKEN = "test-token";
-    delete process.env.EMOVI_USE_FILE_STATS;
-    
-    // Mock global fetch
-    globalThis.fetch = mockFetch;
+    mockSql.mockReset();
   });
 
-  afterEach(() => {
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
-  });
-
-  it("uses SCAN to find puzzle keys", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        result: [
-          "0", // cursor
-          ["framemoji:2025-12-31:puzzle", "framemoji:2025-12-30:puzzle"],
-        ],
-      }),
-    });
-    const { listAvailableDates } = await getModule();
-    
-    const dates = await listAvailableDates();
-    
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/scan/0/MATCH/"),
-      expect.any(Object)
-    );
-    expect(dates).toContain("2025-12-31");
-    expect(dates).toContain("2025-12-30");
-  });
-
-  it("handles pagination when cursor is not 0", async () => {
-    // First page
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        result: [
-          "50", // non-zero cursor means more pages
-          ["framemoji:2025-12-31:puzzle"],
-        ],
-      }),
-    });
-    // Second page
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        result: [
-          "0", // end
-          ["framemoji:2025-12-30:puzzle"],
-        ],
-      }),
-    });
-    const { listAvailableDates } = await getModule();
-    
-    const dates = await listAvailableDates();
-    
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(dates).toContain("2025-12-31");
-    expect(dates).toContain("2025-12-30");
-  });
-
-  it("falls back to file mode on KV error", async () => {
-    mockFetch.mockRejectedValue(new Error("Network error"));
-    mockReaddir.mockResolvedValue([
-      "2025-12-31.json",
+  it("queries daily_pins ordered by day descending", async () => {
+    mockSql.mockResolvedValue([
+      { day: "2025-12-31" },
+      { day: "2025-12-30" },
     ]);
-    const { listAvailableDates } = await getModule();
-    
+    const { listAvailableDates } = await getModulePg();
+
     const dates = await listAvailableDates();
-    
+
+    expect(mockSql).toHaveBeenCalled();
+    expect(dates).toEqual(["2025-12-31", "2025-12-30"]);
+  });
+
+  it("returns dates in the order Postgres provides them", async () => {
+    mockSql.mockResolvedValue([
+      { day: "2025-12-31" },
+      { day: "2025-06-15" },
+      { day: "2025-01-01" },
+    ]);
+    const { listAvailableDates } = await getModulePg();
+
+    const dates = await listAvailableDates();
+
+    expect(dates).toEqual(["2025-12-31", "2025-06-15", "2025-01-01"]);
+  });
+
+  it("falls back to file mode on query error", async () => {
+    mockSql.mockRejectedValue(new Error("db down"));
+    mockReaddir.mockResolvedValue(["2025-12-31.json"]);
+    const { listAvailableDates } = await getModulePg();
+
+    const dates = await listAvailableDates();
+
     expect(dates).toEqual(["2025-12-31"]);
   });
 
-  it("returns sorted dates in descending order", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        result: [
-          "0",
-          [
-            "framemoji:2025-01-01:puzzle",
-            "framemoji:2025-12-31:puzzle",
-            "framemoji:2025-06-15:puzzle",
-          ],
-        ],
-      }),
-    });
-    const { listAvailableDates } = await getModule();
-    
-    const dates = await listAvailableDates();
-    
-    expect(dates).toEqual(["2025-12-31", "2025-06-15", "2025-01-01"]);
+  it("isDateAvailable returns true for a pinned date", async () => {
+    mockSql.mockResolvedValue([{ day: "2025-12-31" }]);
+    const { isDateAvailable } = await getModulePg();
+
+    expect(await isDateAvailable("2025-12-31")).toBe(true);
+    expect(await isDateAvailable("2025-12-30")).toBe(false);
   });
 });

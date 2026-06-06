@@ -1,32 +1,9 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
+import { hasPg, getSql, ensureSchema } from "./db";
 
 // Persist and read the pinned daily puzzle ID for a given UTC day key (YYYY-MM-DD).
-// Uses Vercel KV/Upstash Redis when configured, otherwise falls back to local file storage under var/daily.
-
-const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const USE_FILE = process.env.EMOVI_USE_FILE_STATS === "1"; // re-use flag from stats for local FS preference
-
-function hasKV() {
-  return !!KV_URL && !!KV_TOKEN && !USE_FILE;
-}
-
-async function kvFetch(pathname: string, init?: RequestInit) {
-  const url = `${KV_URL}${pathname}`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${KV_TOKEN}` },
-    cache: "no-store",
-    ...init,
-  });
-  if (!res.ok) throw new Error(`KV error ${res.status}`);
-  return res.json();
-}
-
-function kvKey(day: string) {
-  return `framemoji:${day}:puzzle`;
-}
+// Uses Neon Postgres when configured, otherwise falls back to local file storage under var/daily.
 
 const baseDir = path.join(process.cwd(), "var", "daily");
 
@@ -39,13 +16,15 @@ function filePath(day: string) {
 }
 
 export async function getPinnedDailyId(day: string): Promise<number | null> {
-  if (hasKV()) {
+  if (hasPg()) {
     try {
-      const data = await kvFetch(`/get/${encodeURIComponent(kvKey(day))}`);
-      const raw = data?.result;
-      if (raw == null) return null;
-      const n = Number(raw);
-      return Number.isFinite(n) ? n : null;
+      await ensureSchema();
+      const sql = getSql();
+      const rows = (await sql`
+        SELECT puzzle_id FROM daily_pins WHERE day = ${day}
+      `) as Array<{ puzzle_id: number }>;
+      const id = rows[0]?.puzzle_id;
+      return typeof id === "number" && Number.isFinite(id) ? id : null;
     } catch {
       // fall through to file as a best-effort fallback
     }
@@ -62,12 +41,17 @@ export async function getPinnedDailyId(day: string): Promise<number | null> {
 }
 
 export async function pinDailyIdIfAbsent(day: string, id: number): Promise<number> {
-  // Try KV first if available
-  if (hasKV()) {
+  if (hasPg()) {
     try {
-      // SETNX returns 1 if set, 0 if key already exists
-      await kvFetch(`/setnx/${encodeURIComponent(kvKey(day))}/${encodeURIComponent(String(id))}`);
-      const pinned = await getPinnedDailyId(day);
+      await ensureSchema();
+      const sql = getSql();
+      const rows = (await sql`
+        INSERT INTO daily_pins (day, puzzle_id)
+        VALUES (${day}, ${id})
+        ON CONFLICT (day) DO UPDATE SET puzzle_id = daily_pins.puzzle_id
+        RETURNING puzzle_id
+      `) as Array<{ puzzle_id: number }>;
+      const pinned = rows[0]?.puzzle_id;
       return typeof pinned === "number" ? pinned : id;
     } catch {
       // ignore and attempt file fallback
@@ -85,11 +69,19 @@ export async function pinDailyIdIfAbsent(day: string, id: number): Promise<numbe
   }
 }
 
-// Local-only: force-set today's pinned ID. Only used in file-storage mode for development.
+// Force-set the pinned ID for a day, overwriting any existing value.
+// Guarded to local/dev use by the calling route.
 export async function setPinnedDailyId(day: string, id: number): Promise<number> {
-  // Intentionally avoid KV: this is a local-only helper.
-  if (hasKV()) {
-    throw new Error("Cannot set pinned daily ID when KV is configured");
+  if (hasPg()) {
+    await ensureSchema();
+    const sql = getSql();
+    const rows = (await sql`
+      INSERT INTO daily_pins (day, puzzle_id)
+      VALUES (${day}, ${id})
+      ON CONFLICT (day) DO UPDATE SET puzzle_id = EXCLUDED.puzzle_id
+      RETURNING puzzle_id
+    `) as Array<{ puzzle_id: number }>;
+    return rows[0]?.puzzle_id ?? id;
   }
   try {
     await ensureDir();

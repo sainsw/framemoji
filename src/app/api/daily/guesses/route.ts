@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const revalidate = 0;
 import { utcDateKey } from "@/lib/daily";
-import { topGuessesKV, __debugKVGuesses } from "@/server/stats";
+import { topGuesses as topGuessesPg, __debugGuesses } from "@/server/stats";
+import { hasPg } from "@/server/db";
 
 // Date validation regex
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -27,17 +28,16 @@ export async function GET(req: Request) {
   }
 
   const dateKey = requestedDate || today;
-  // Try KV-based top guesses first; optionally fall back to file mode when explicitly enabled
+  // Try Postgres-based top guesses first; fall back to file mode for local dev
   let items: { key: string; count: number }[] = [];
   const tried: string[] = [];
   try {
-    tried.push("kv");
-    items = await topGuessesKV(dateKey, reveal, limit);
+    tried.push("pg");
+    items = await topGuessesPg(dateKey, reveal, limit);
   } catch (e) {
-    if (debug) tried.push(`kv_error:${(e as any)?.message || 'err'}`);
+    if (debug) tried.push(`pg_error:${(e as any)?.message || 'err'}`);
   }
-  const useFileFallback = process.env.EMOVI_USE_FILE_STATS === "1" || (!process.env.KV_REST_API_URL && !process.env.UPSTASH_REDIS_REST_URL);
-  if (items.length === 0 && useFileFallback) {
+  if (items.length === 0 && !hasPg()) {
     try {
       tried.push("file");
       const { loadHistogram: loadFileHistogram, topGuesses } = await import("@/server/statsStore");
@@ -50,11 +50,11 @@ export async function GET(req: Request) {
     }
   }
   if (debug) {
-    const dbg = await __debugKVGuesses(dateKey, reveal).catch(() => null);
+    const dbg = await __debugGuesses(dateKey, reveal).catch(() => null);
     return NextResponse.json({ reveal, items, tried, dateKey, env: {
-      hasKV: !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
+      hasPg: hasPg(),
       runtime: process.env.NEXT_RUNTIME || 'unknown'
-    }, kv: dbg });
+    }, pg: dbg });
   }
   return NextResponse.json({ reveal, items });
 }
