@@ -4,8 +4,7 @@
    column in the distribution, your result figure. Buttons are made primary by inversion (white pill).
 
    Grid: one centred column, max 1080px, 29px gutters on desktop and 16px on a phone. The film strip
-   spans the full column: 10 frames, 5 inner 6px gaps and 4 take gaps of 14px, so
-   frame = (100cqw - 4 * 14px - 5 * 6px) / 10. */
+   spans the full column; its sizing is worked out above .strip. */
 
 :root {
   --ground: #000000;
@@ -172,37 +171,62 @@ a { color: inherit; }
 .meter-seg { height: 6px; border-radius: 3px; background: var(--raised); transition: background 300ms ease; }
 .meter-seg.is-left { background: var(--accent); }
 
-/* ---------- the film strip ---------- */
+/* ---------- the film strip ----------
+   Shown frames share the column; frames still to come wait as small slots at the end.
+   Wide (one row): 5 takes → 4 take gaps of 14px, 10 frames in them → 5 inner gaps of 6px, every
+   locked frame is a 36px slot, so a shown frame is
+     s = (100cqw - 4 * 14 - 5 * 6 - locked * 36) / shown        (227px at the start, 93px at the end).
+   Under 860px: takes pack into rows of five frames (3 + 2 | 2 + 2 + 1) with one 8px gap, so
+   s = (100cqw - 4 * 8) / 5. Under 560px (phones): rows of four (3 | 2 + 2 | 2 + 1), so
+   s = (100cqw - 3 * 8) / 4, keeping emoji near 56px. While only the opening three show they take a
+   third of the row each. Slots move to their own row below. 1px is held back so rounding never
+   forces a wrap. */
 .strip-wrap { container-type: inline-size; }
 .strip {
-  --frame-gap: 6px;
-  --take-gap: 14px;
-  --f: calc((100cqw - 4 * var(--take-gap) - 5 * var(--frame-gap)) / 10);
+  --g: 6px;
+  --tg: 14px;
+  --pip: 36px;
+  --glyph: 0.6;
+  --s: calc((100cqw - 4 * var(--tg) - 5 * var(--g) - var(--locked) * var(--pip) - 1px) / var(--shown));
   display: flex;
-  gap: var(--take-gap);
+  align-items: flex-end;
+  gap: var(--tg);
 }
-.take { display: grid; gap: 10px; align-content: start; flex: 0 0 calc(var(--n) * var(--f) + (var(--n) - 1) * var(--frame-gap)); min-width: 0; }
-.take-frames { display: flex; gap: var(--frame-gap); }
+.strip-break { display: none; }
+
+.take { flex: none; display: flex; flex-direction: column; gap: 10px; }
+.take-frames { display: flex; gap: var(--g); }
+
 .frame {
-  flex: 0 0 var(--f);
-  aspect-ratio: 1 / 1;
+  width: var(--s);
+  height: var(--s);
   display: grid;
   place-items: center;
-  border-radius: var(--radius-frame);
-  background: var(--well);
+  border-radius: clamp(8px, calc(var(--s) * 0.08), 18px);
+  background: var(--surface);
   font-family: var(--emoji-font);
-  font-size: calc(var(--f) * 0.62);
+  font-size: calc(var(--s) * var(--glyph));
   line-height: 1;
   overflow: hidden;
+  transition:
+    width 520ms var(--ease-out),
+    height 520ms var(--ease-out),
+    font-size 520ms var(--ease-out),
+    border-radius 520ms var(--ease-out),
+    background-color 300ms ease;
 }
-.frame.is-shown { background: var(--surface); }
-.take.is-spare .frame.is-shown { opacity: 0.45; }
+.take.is-locked .frame { width: var(--pip); height: var(--pip); border-radius: 8px; background: #1c1c1c; }
+.take.is-spare .frame { background: #0b0b0b; }
+.take.is-spare .frame-glyph { opacity: 0.4; }
 .frame-glyph { display: block; }
-.frame-glyph.is-new { animation: frame-in 520ms var(--ease-out) both; }
-.frame.is-loading { animation: frame-wait 1.4s ease-in-out infinite; background: var(--surface); }
+.frame-glyph.is-new { animation: frame-in 480ms var(--ease-out) both; }
+.frame.is-loading { animation: frame-wait 1.4s ease-in-out infinite; }
 
 .take-note {
-  min-height: 20px;
+  /* never widens its take: the frames set the width, long titles end in an ellipsis */
+  width: 0;
+  min-width: 100%;
+  min-height: 16px;
   font-size: var(--fs-small);
   line-height: 16px;
   color: var(--faint);
@@ -213,19 +237,33 @@ a { color: inherit; }
 .take-note.is-miss { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--negative); }
 .take-note.is-now { color: var(--text); font-weight: 500; }
 .take-note.is-solved { color: var(--accent); font-weight: 500; }
+/* a slot's note may run past its slot; the last one runs leftwards so it stays inside the column */
+.take.is-locked .take-note { overflow: visible; }
+.take.is-locked:last-child .take-note { display: flex; justify-content: flex-end; }
 
-/* phone: two rows of five, takes 1–2 then 3–5; one gap so the frames stay equal */
-@media (max-width: 640px) {
+@container (max-width: 860px) {
   .strip {
-    --take-gap: var(--frame-gap);
-    --f: calc((100cqw - 4 * var(--frame-gap)) / 5);
+    --g: 8px;
+    --tg: 8px;
+    --pip: 24px;
+    --glyph: 0.68;
+    --s: calc((100cqw - 4 * var(--g) - 1px) / 5);
     flex-wrap: wrap;
-    row-gap: 12px;
+    row-gap: 14px;
   }
+  .strip.is-opening { --s: calc((100cqw - 2 * var(--g) - 1px) / 3); }
+  .strip-break { display: block; flex-basis: 100%; height: 0; margin-top: -14px; }
+  .take.is-locked .take-frames { gap: 4px; }
+  .take.is-locked .frame { border-radius: 6px; }
+  .take.is-locked:last-child .take-note { justify-content: flex-start; }
+}
+@container (max-width: 560px) {
+  .strip { --s: calc((100cqw - 3 * var(--g) - 1px) / 4); }
+  .strip.is-opening { --s: calc((100cqw - 2 * var(--g) - 1px) / 3); }
 }
 
 @keyframes frame-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.85); }
+  from { opacity: 0; transform: translateY(10px) scale(0.8); }
   to { opacity: 1; transform: none; }
 }
 @keyframes frame-wait {

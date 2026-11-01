@@ -115,7 +115,7 @@ export function ResultsPanel({
             <dt>Better than</dt>
             <dd>
               {percentile !== null ? `${percentile}%` : "–"}
-              <small>of players{when}</small>
+              <small>of players</small>
             </dd>
           </div>
           <div className="figure" suppressHydrationWarning>

@@ -140,7 +140,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         status: "wrong",
         reveal: action.revealed,
-        wrongMsg: "Skipped. More clues revealed.",
+        wrongMsg: "Skipped. More frames revealed.",
         skips: state.skips + 1,
         history: [...state.history, { kind: "skip" }],
         hasGuessed: true,
@@ -230,18 +230,18 @@ export function useGameReducer() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WRONG_MESSAGES = [
-  "Close, but no cigar. Fresh clues just dropped.",
-  "Not quite. Unlocking more emoji…",
-  "Swing and a miss — here are more hints.",
-  "Nice try! Here come extra clues.",
-  "Good guess, wrong movie. More emoji revealed.",
-  "So close. Ok, extra emoji incoming.",
-  "Plot twist: that wasn't it. New clues revealed!",
-  "Almost! A couple more pictograms to help.",
-  "Nope. The emoji council grants you more.",
-  "Incorrect. Let's sweeten it with extra emoji.",
-  "Not this time — enjoy more clues.",
-  "Incorrect guess. More hints just dropped.",
+  "Close, but no cigar. More frames are rolling.",
+  "Not quite. The next frames are up.",
+  "Swing and a miss. Here are more frames.",
+  "Nice try. The reel keeps turning.",
+  "Good guess, wrong film. More frames revealed.",
+  "So close. Roll the next frames.",
+  "Plot twist: that wasn't it. New frames revealed.",
+  "Almost. A few more frames to help.",
+  "Nope. The projectionist grants you more.",
+  "Not this one. Let's add a few more frames.",
+  "Not this time. Enjoy the next frames.",
+  "Wrong film. More frames just dropped.",
 ];
 
 export function getRandomWrongMessage(): string {

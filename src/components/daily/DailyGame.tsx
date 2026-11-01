@@ -259,7 +259,7 @@ export default function DailyGame() {
   // Move focus to results panel when the game finishes
   useEffect(() => {
     if (state.status === "finished") {
-      setTimeout(() => resultRef.current?.focus(), 0);
+      setTimeout(() => resultRef.current?.focus({ preventScroll: true }), 0);
     }
   }, [state.status]);
 
