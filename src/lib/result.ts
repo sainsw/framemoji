@@ -49,7 +49,7 @@ export function clearAllDailyResults() {
       const k = localStorage.key(i);
       if (k && k.startsWith(PREFIX)) keys.push(k);
     }
-    keys.forEach((k) => localStorage.removeItem(k));
+    for (const k of keys) localStorage.removeItem(k);
   } catch {
     // ignore
   }

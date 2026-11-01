@@ -66,7 +66,8 @@ export function percentileForReveal(hist: DailyHistogram, revealed: number, corr
 export async function recordGuess(dateKey: string, revealed: number, key: string) {
   const idx = revealIndexForCount(revealed);
   const hist = await loadHistogram(dateKey);
-  const bucket = hist.guesses[idx] || (hist.guesses[idx] = {});
+  hist.guesses[idx] ??= {};
+  const bucket = hist.guesses[idx];
   bucket[key] = (bucket[key] || 0) + 1;
   await writeFile(filePath(dateKey), JSON.stringify(hist), "utf8");
   return hist;
