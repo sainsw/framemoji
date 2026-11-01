@@ -27,7 +27,11 @@ export type GameState = {
   wrongGuesses: string[];
   wrongMsg: string | null;
   skips: number;
+  /** Ordered log of misses, one entry per guess slot used. */
+  history: GuessLogEntry[];
 };
+
+export type GuessLogEntry = { kind: "guess"; text: string } | { kind: "skip" };
 
 export const initialGameState: GameState = {
   meta: null,
@@ -46,6 +50,7 @@ export const initialGameState: GameState = {
   wrongGuesses: [],
   wrongMsg: null,
   skips: 0,
+  history: [],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,6 +130,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         reveal: action.revealed,
         wrongMsg: action.wrongMsg,
         wrongGuesses: [...state.wrongGuesses, action.guess],
+        history: [...state.history, { kind: "guess", text: action.guess }],
         hasGuessed: true,
         finalTitle: null,
       };
@@ -136,6 +142,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         reveal: action.revealed,
         wrongMsg: "Skipped. More clues revealed.",
         skips: state.skips + 1,
+        history: [...state.history, { kind: "skip" }],
         hasGuessed: true,
       };
 

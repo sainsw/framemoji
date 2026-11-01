@@ -1,12 +1,12 @@
 import { revealStepForCount } from "@/lib/reveal";
 import type { Histogram } from "./types";
 
+/** One column per guess plus misses. Your column carries the data hue; the selected one is raised. */
 export function HistogramView({
   histogram,
   myReveal,
   failed,
   onSelect,
-  labels,
   selectedReveal,
   steps,
   emojiLabels,
@@ -15,7 +15,6 @@ export function HistogramView({
   myReveal: number;
   failed: boolean;
   onSelect?: (reveal: number) => void;
-  labels?: string[];
   selectedReveal?: number;
   steps: readonly number[];
   emojiLabels?: string[];
@@ -23,117 +22,44 @@ export function HistogramView({
   const solves = histogram.solves.map((v) => Number(v || 0));
   const failCount = Number(histogram.fail || 0);
   const max = Math.max(1, ...solves, failCount);
-  const cols = steps.length + 1;
+  const cols = [
+    ...steps.map((step, i) => ({
+      key: step,
+      value: solves[i] ?? 0,
+      label: `Guess ${i + 1}`,
+      short: String(i + 1),
+      emoji: emojiLabels?.[i],
+      isYou: !failed && revealStepForCount(myReveal) === step,
+      isMiss: false,
+    })),
+    { key: 0, value: failCount, label: "Missed", short: "Missed", emoji: undefined, isYou: failed, isMiss: true },
+  ];
+
   return (
-    <div>
-      <div className="hist" style={{ ["--hist-cols" as any]: cols }}>
-        {solves.map((c, i) => {
-          const step = steps[i] ?? i + 1;
-          const label = labels?.[i] ?? String(step);
-          const h = Math.round((c / max) * 100);
-          const isMe = !failed && revealStepForCount(myReveal) === step;
-          const isSelected = selectedReveal === step;
-          return (
-            <div
-              key={i}
-              aria-label={labels ? `Solved in guess ${label}: ${c}` : `Solved at ${step} emoji: ${c}`}
-              className={`bar${isMe ? " me" : ""}`}
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                border: isSelected ? "3px solid #ffffff" : isMe ? "3px solid var(--success)" : "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 8,
-                position: "relative",
-                height: "100%",
-                cursor: onSelect ? "pointer" : "default",
-              }}
-              role={onSelect ? "button" : undefined}
-              tabIndex={onSelect ? 0 : -1}
-              onClick={() => onSelect?.(step)}
-              onKeyDown={(e) => {
-                if (!onSelect) return;
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelect(step);
-                }
-              }}
-            >
-              <div
-                className="fill"
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: `${h}%`,
-                  background: "var(--accent)",
-                  borderRadius: 6,
-                  opacity: 0.8,
-                }}
-              />
-            </div>
-          );
-        })}
-        {(() => {
-          const c = failCount;
-          const h = Math.round((c / max) * 100);
-          const isMe = failed;
-          const isSelected = selectedReveal === 0;
-          return (
-            <div
-              aria-label={`Failed: ${c}`}
-              className={`bar fail${isMe ? " me" : ""}`}
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                border: isSelected ? "3px solid #ffffff" : isMe ? "3px solid var(--success)" : "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 8,
-                position: "relative",
-                height: "100%",
-                cursor: onSelect ? "pointer" : "default",
-              }}
-              role={onSelect ? "button" : undefined}
-              tabIndex={onSelect ? 0 : -1}
-              onClick={() => onSelect?.(0)}
-              onKeyDown={(e) => {
-                if (!onSelect) return;
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelect(0);
-                }
-              }}
-            >
-              <div
-                className="fill"
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: `${h}%`,
-                  background: "var(--danger)",
-                  borderRadius: 6,
-                  opacity: 0.9,
-                }}
-              />
-            </div>
-          );
-        })()}
-      </div>
-      <div className="hist-labels hist-labels-number" style={{ ["--hist-cols" as any]: cols }}>
-        {steps.map((step, i) => (
-          <div key={step}>{labels?.[i] ?? step}</div>
-        ))}
-        <div>❌</div>
-      </div>
-      {emojiLabels && emojiLabels.length === steps.length && (
-        <div className="hist-labels hist-labels-emoji" style={{ ["--hist-cols" as any]: cols }}>
-          {steps.map((step, i) => (
-            <div key={step} aria-label={`${step} emoji revealed`}>
-              <span aria-hidden="true">{emojiLabels[i]}</span>
-            </div>
-          ))}
-          <div>❌</div>
-        </div>
-      )}
+    <div className="dist" role="group" aria-label="Players by the guess they solved on">
+      {cols.map((c) => (
+        <button
+          key={c.key}
+          type="button"
+          className={`dist-col${c.isYou ? " is-you" : ""}${c.isMiss ? " is-miss" : ""}${selectedReveal === c.key ? " is-selected" : ""}`}
+          aria-pressed={selectedReveal === c.key}
+          aria-label={`${c.label}: ${c.value} players${c.isYou ? ", you" : ""}`}
+          onClick={() => onSelect?.(c.key)}
+        >
+          <span className="dist-count">{c.value}</span>
+          <span className="dist-bar-track">
+            <span className="dist-bar" style={{ height: `${(c.value / max) * 100}%` }} />
+          </span>
+          <span className="dist-label">
+            <span className="dist-label-long">{c.isMiss ? "Missed" : c.short}</span>
+            {c.emoji ? (
+              <span className="dist-emoji" aria-hidden="true">
+                {c.emoji}
+              </span>
+            ) : null}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }

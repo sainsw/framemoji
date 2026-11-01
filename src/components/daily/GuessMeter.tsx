@@ -1,32 +1,17 @@
 import { guessesLeftForReveal, REVEAL_STEPS } from "@/lib/reveal";
 
-export function GuessMeter({ reveal, hasGuessed }: { reveal: number; hasGuessed: boolean }) {
-  if (!hasGuessed) return null;
-  const totalGuesses = REVEAL_STEPS.length;
-  const guessesLeft = guessesLeftForReveal(reveal);
-  const pct = Math.max(0, Math.min(100, Math.round((guessesLeft / totalGuesses) * 100)));
+export function GuessMeter({ reveal }: { reveal: number }) {
+  const total = REVEAL_STEPS.length;
+  const left = guessesLeftForReveal(reveal);
   return (
-    <div
-      className="guess-meter-shell is-visible"
-      aria-hidden={!hasGuessed}
-      style={{ transitionDelay: `${480 + Math.max(0, reveal - 1) * 70}ms` }}
-    >
-      <div className="guess-meter" aria-live="polite">
-        <div className="guess-meter-copy">
-          <div className="guess-meter-title">Guesses remaining</div>
-          <div className="guess-meter-count">
-            <span className="guess-meter-value">{guessesLeft}</span>
-            <span className="guess-meter-total">/ {totalGuesses}</span>
-          </div>
-        </div>
-        <div
-          className="guess-meter-bar"
-          role="img"
-          aria-label={`${guessesLeft} of ${totalGuesses} guesses remaining`}
-          style={{ ["--ticks" as any]: totalGuesses }}
-        >
-          <div className="guess-meter-bar-fill" style={{ width: `${pct}%` }} />
-        </div>
+    <div className="meter" aria-live="polite">
+      <div className="meter-label">
+        <strong className="num">{left}</strong> of {total} guesses left
+      </div>
+      <div className="meter-track" aria-hidden="true">
+        {Array.from({ length: total }).map((_, i) => (
+          <span key={i} className={`meter-seg${i < left ? " is-left" : ""}`} />
+        ))}
       </div>
     </div>
   );

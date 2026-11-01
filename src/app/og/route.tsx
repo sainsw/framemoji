@@ -11,7 +11,7 @@ const siteHost = siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
 function getTwemojiUrl(emoji: string): string {
   const codePoint = [...emoji]
     .map((char) => char.codePointAt(0)?.toString(16))
-    .filter(Boolean)
+    .filter((cp) => cp && cp !== "fe0f")
     .join("-");
   return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${codePoint}.png`;
 }
@@ -20,15 +20,23 @@ function Emoji({ char, size = 40 }: { char: string; size?: number }) {
   return <img src={getTwemojiUrl(char)} alt={char} width={size} height={size} />;
 }
 
-export async function GET() {
-  // Load Geist font
-  const geistBold = await fetch(
-    "https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.0.3/files/geist-sans-latin-700-normal.woff"
-  ).then((res) => res.arrayBuffer());
+// A real puzzle's first take (The Shawshank Redemption), the way the game opens: three frames shown.
+const OPENING_TAKE = ["🧱", "👨‍💼", "🤝"];
+const TAKES = [3, 2, 2, 2, 1];
 
-  const geistRegular = await fetch(
-    "https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.0.3/files/geist-sans-latin-400-normal.woff"
-  ).then((res) => res.arrayBuffer());
+export async function GET() {
+  const [interSemi, interRegular] = await Promise.all([
+    fetch("https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/files/inter-latin-600-normal.woff").then((r) =>
+      r.arrayBuffer(),
+    ),
+    fetch("https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/files/inter-latin-400-normal.woff").then((r) =>
+      r.arrayBuffer(),
+    ),
+  ]);
+
+  // 1200 - 2 * 72 margin = 1056 = 10 frames + 5 * 8 inner gaps + 4 * 20 take gaps → frame 93.6
+  const frame = 93.6;
+  let idx = 0;
 
   return new ImageResponse(
     (
@@ -38,76 +46,60 @@ export async function GET() {
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: "60px",
-          backgroundColor: "#09090b",
-          backgroundImage:
-            "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(251, 146, 60, 0.25), transparent), radial-gradient(ellipse 60% 40% at 100% 100%, rgba(239, 68, 68, 0.2), transparent), radial-gradient(ellipse 50% 30% at 0% 100%, rgba(168, 85, 247, 0.2), transparent)",
-          color: "#fafafa",
-          fontFamily: "Geist",
+          justifyContent: "space-between",
+          padding: "64px 72px",
+          backgroundColor: "#000000",
+          color: "#ffffff",
+          fontFamily: "Inter",
         }}
       >
-        {/* Hero emoji row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 48,
-          }}
-        >
-          <Emoji char="🎬" size={100} />
-          <div style={{ width: 24 }} />
-          <Emoji char="🍿" size={100} />
-          <div style={{ width: 24 }} />
-          <Emoji char="🎥" size={100} />
-          <div style={{ width: 24 }} />
-          <Emoji char="🌟" size={100} />
-          <div style={{ width: 24 }} />
-          <Emoji char="🎭" size={100} />
-        </div>
-
-        {/* Title */}
-        <div
-          style={{
-            fontSize: 96,
-            fontWeight: 700,
-            letterSpacing: -3,
-            marginBottom: 20,
-            background: "linear-gradient(135deg, #fff 0%, #a1a1aa 100%)",
-            backgroundClip: "text",
-            color: "transparent",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", fontSize: 30, fontWeight: 600 }}>
+          <div style={{ display: "flex", marginRight: 16 }}>
+            <div style={{ width: 12, height: 32, borderRadius: 3, backgroundColor: "#ffffff", marginRight: 4 }} />
+            <div style={{ width: 12, height: 32, borderRadius: 3, backgroundColor: "#999999", marginRight: 4 }} />
+            <div style={{ width: 12, height: 32, borderRadius: 3, backgroundColor: "#4d4d4d" }} />
+          </div>
           Framemoji
         </div>
 
-        {/* Tagline */}
-        <div
-          style={{
-            fontSize: 32,
-            color: "#a1a1aa",
-            textAlign: "center",
-            maxWidth: 700,
-            lineHeight: 1.4,
-          }}
-        >
-          Guess the movie from the emoji. A new puzzle every day.
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ fontSize: 76, fontWeight: 600, letterSpacing: -2, lineHeight: 1.05 }}>Which film is this?</div>
+          <div style={{ fontSize: 30, color: "#b4b4b4", marginTop: 18 }}>
+            Ten emoji tell one film a day. You get five guesses.
+          </div>
         </div>
 
-        {/* Footer URL */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 50,
-            left: 60,
-            display: "flex",
-            alignItems: "center",
-            opacity: 0.5,
-          }}
-        >
-          <span style={{ fontSize: 24, letterSpacing: 1 }}>{siteHost}</span>
+        <div style={{ display: "flex" }}>
+          {TAKES.map((n, ti) => (
+            <div key={ti} style={{ display: "flex", marginRight: ti < TAKES.length - 1 ? 20 : 0 }}>
+              {Array.from({ length: n }).map((_, k) => {
+                const i = idx++;
+                const glyph = OPENING_TAKE[i];
+                return (
+                  <div
+                    key={k}
+                    style={{
+                      width: frame,
+                      height: frame,
+                      marginRight: k < n - 1 ? 8 : 0,
+                      borderRadius: 12,
+                      backgroundColor: glyph ? "#1a1a1a" : "#0f0f0f",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {glyph ? <Emoji char={glyph} size={58} /> : null}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, color: "#949494" }}>
+          <span>{siteHost}</span>
+          <span style={{ color: "#f2b33d" }}>5 of 5 guesses left</span>
         </div>
       </div>
     ),
@@ -115,19 +107,9 @@ export async function GET() {
       width: 1200,
       height: 630,
       fonts: [
-        {
-          name: "Geist",
-          data: geistBold,
-          style: "normal",
-          weight: 700,
-        },
-        {
-          name: "Geist",
-          data: geistRegular,
-          style: "normal",
-          weight: 400,
-        },
+        { name: "Inter", data: interSemi, style: "normal", weight: 600 },
+        { name: "Inter", data: interRegular, style: "normal", weight: 400 },
       ],
-    }
+    },
   );
 }

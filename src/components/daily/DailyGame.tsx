@@ -50,7 +50,6 @@ export default function DailyGame() {
   const clues = useMemo(() => state.meta?.puzzle.emoji_clues ?? [], [state.meta]);
   const shown = useMemo(() => clues.slice(0, state.reveal).join(""), [clues, state.reveal]);
   const suggestions = useMemo(() => filterSuggestions(movies, guess), [movies, guess]);
-  const animateEmoji = state.metaLoaded;
   const dateLabel = state.meta?.day ?? playingDate ?? "…";
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -81,7 +80,7 @@ export default function DailyGame() {
    */
   const finishAsLoss = useCallback((revealed: number, meta: DailyMeta) => {
     if (isPlayingToday) {
-      recordLoss();
+      setStats(recordLoss());
     }
     dispatch({ type: "FINISH_LOSE", revealed });
     triggerMoviesLoad();
@@ -303,7 +302,7 @@ export default function DailyGame() {
       triggerMoviesLoad();
       
       if (isPlayingToday) {
-        recordWin(resp.score);
+        setStats(recordWin(resp.score));
       }
       setDailyResult(meta.day, {
         correct: true,
@@ -372,36 +371,78 @@ export default function DailyGame() {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
+  const outcome = state.status === "finished" ? (state.answer ? "lost" : "won") : "playing";
+  const longDate = formatLongDate(dateLabel);
+  const shortDate = formatShortDate(dateLabel);
+  const streak = stats?.currentStreak ?? 0;
+
+  let title = "Which film is this?";
+  if (outcome === "won") title = solutionTitle ? `You got it: ${solutionTitle}` : "You got it";
+  if (outcome === "lost") title = solutionTitle && state.answer !== "Loading answer..." ? `It was ${solutionTitle}` : "Out of guesses";
+
   return (
-    <section className="card">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <button 
-          type="button"
-          className="date-header-btn"
-          onClick={datePicker.openDatePicker}
-          aria-label={`Current puzzle: ${dateLabel}. Click to select a different date.`}
-        >
-          <span className="status">
-            {isArchive ? "Archive" : "Daily"} — {dateLabel}
+    <>
+      <header className="topbar">
+        <a className="wordmark" href="/" aria-label="Framemoji, today's film">
+          <svg className="wordmark-mark" viewBox="0 0 22 16" aria-hidden="true">
+            <rect x="0" y="0" width="6" height="16" rx="1.5" fill="currentColor" />
+            <rect x="8" y="0" width="6" height="16" rx="1.5" fill="currentColor" opacity="0.6" />
+            <rect x="16" y="0" width="6" height="16" rx="1.5" fill="currentColor" opacity="0.3" />
+          </svg>
+          Framemoji
+        </a>
+        <div className="topbar-end">
+          <span className="topbar-streak" suppressHydrationWarning>
+            <span className="topbar-streak-label">Streak </span>
+            <strong className="num">{streak}</strong>
+            <span className="topbar-streak-label"> {streak === 1 ? "day" : "days"}</span>
           </span>
-          <span className="date-header-chevron" aria-hidden="true">▼</span>
-        </button>
+          <span className="topbar-divider" aria-hidden="true" />
+          <button
+            type="button"
+            className="date-switch"
+            onClick={datePicker.openDatePicker}
+            aria-label={`${isArchive ? "Archive film" : "Today's film"}: ${longDate}. Choose another day.`}
+          >
+            {isArchive ? `Archive · ${shortDate}` : shortDate}
+            <svg viewBox="0 0 10 10" aria-hidden="true">
+              <path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div className="title-row">
+        <div>
+          <h1>{title}</h1>
+          <p className="title-sub">
+            {outcome === "playing"
+              ? `${isArchive ? "The film" : "Today's film"} for ${longDate}, told in ten emoji. Each miss or skip shows more frames.`
+              : `${isArchive ? "The film" : "Today's film"} for ${longDate}. A new film arrives at midnight UTC.`}
+          </p>
+        </div>
+        {outcome === "playing" && state.meta ? <GuessMeter reveal={state.reveal} /> : null}
       </div>
-      <div className="spacer" />
 
-      {state.status !== "finished" && (
-        <>
-          <EmojiGrid clues={clues} reveal={state.reveal} animate={animateEmoji} />
-          <GuessMeter reveal={state.reveal} hasGuessed={state.hasGuessed} />
-          {/* Screen reader-friendly live summary of shown clues */}
-          <div className="sr-only" aria-live="polite" aria-atomic="true">
-            {`Clues shown (${state.reveal}/10): ${shown}`}
-          </div>
-          <div className="spacer" />
-        </>
+      {state.metaLoaded && !state.meta ? (
+        <div className="load-error" role="alert">
+          <strong>The film for {longDate} didn&apos;t load.</strong>
+          Check your connection and reload the page to try again.
+        </div>
+      ) : (
+        <EmojiGrid
+          clues={clues}
+          reveal={state.reveal}
+          loaded={state.metaLoaded && !!state.meta}
+          history={state.history}
+          outcome={outcome}
+        />
       )}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {`Clues shown (${state.reveal}/10): ${shown}`}
+      </div>
 
-      {state.status !== "finished" && (
+      {state.status !== "finished" && state.meta && (
         <GuessInput
           guess={guess}
           onGuessChange={handleGuessChange}
@@ -413,8 +454,6 @@ export default function DailyGame() {
           inputRef={inputRef}
           status={state.status}
           wrongMsg={state.wrongMsg}
-          wrongGuesses={state.wrongGuesses}
-          skips={state.skips}
         />
       )}
 
@@ -432,8 +471,6 @@ export default function DailyGame() {
           topGuesses={state.topGuesses}
           movies={movies}
           posterUrl={posterUrl}
-          finalTitle={state.finalTitle}
-          devAnswer={state.meta?.answer ?? null}
           stats={stats}
           remainingMs={isPlayingToday ? remainingMs : null}
           resultRef={resultRef}
@@ -457,45 +494,23 @@ export default function DailyGame() {
           loading={datePicker.datesLoading}
         />
       )}
-
-      <style jsx>{`
-        .date-header-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.4rem;
-          background: transparent;
-          border: none;
-          padding: 0.25rem 0.5rem;
-          margin: -0.25rem -0.5rem;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: background 0.15s;
-          color: inherit;
-          font: inherit;
-          -webkit-appearance: none;
-          appearance: none;
-          position: relative;
-          z-index: 1;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-        }
-        .date-header-btn:hover {
-          background: rgba(255, 255, 255, 0.08);
-        }
-        .date-header-btn:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 2px;
-        }
-        .date-header-chevron {
-          font-size: 0.6rem;
-          opacity: 0.6;
-          transition: transform 0.15s;
-          pointer-events: none;
-        }
-        .date-header-btn:hover .date-header-chevron {
-          transform: translateY(1px);
-        }
-      `}</style>
-    </section>
+    </>
   );
+}
+
+function parseDay(key: string) {
+  const m = key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))) : null;
+}
+
+function formatLongDate(key: string) {
+  const d = parseDay(key);
+  if (!d) return "today";
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+}
+
+function formatShortDate(key: string) {
+  const d = parseDay(key);
+  if (!d) return "Today";
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 }

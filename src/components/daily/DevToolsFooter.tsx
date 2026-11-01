@@ -10,8 +10,8 @@ export function DevToolsFooter({ meta }: { meta: DailyMeta | null }) {
   if (!meta?.answer) return null;
 
   return (
-    <footer style={{ marginTop: "0.75rem", opacity: 0.8, fontSize: "0.9rem", display: "flex", gap: "0.75rem", alignItems: "center", justifyContent: "space-between" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+    <aside className="devtools" aria-label="Developer tools">
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
         <span>Dev mode: answer is <strong>{meta.answer}</strong></span>
         <form
           onSubmit={async (e) => {
@@ -40,7 +40,6 @@ export function DevToolsFooter({ meta }: { meta: DailyMeta | null }) {
             }
           }}
           aria-label="Pin today's puzzle ID"
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
         >
           <label htmlFor="pin-id" className="sr-only">Pinned ID</label>
           <input
@@ -50,15 +49,15 @@ export function DevToolsFooter({ meta }: { meta: DailyMeta | null }) {
             placeholder="Pinned ID"
             value={pinInput}
             onChange={(e) => setPinInput(e.target.value)}
-            style={{ width: 120 }}
           />
-          <button type="submit" className="secondary">Pin today</button>
+          <button type="submit" className="btn btn-quiet">Pin today</button>
           {pinStatus && <span aria-live="polite">{pinStatus}</span>}
         </form>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <div>
         <button
-          className="secondary"
+          type="button"
+          className="btn btn-quiet"
           onClick={() => {
             clearAllDailyResults();
             resetLocalStats();
@@ -70,6 +69,6 @@ export function DevToolsFooter({ meta }: { meta: DailyMeta | null }) {
           Clear local data
         </button>
       </div>
-    </footer>
+    </aside>
   );
 }

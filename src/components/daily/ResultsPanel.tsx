@@ -3,9 +3,23 @@ import type { RefObject } from "react";
 import { normalizeTitle } from "@/lib/normalize";
 import { REVEAL_STEPS, revealIndexForCount } from "@/lib/reveal";
 import type { DailyStats } from "@/lib/stats";
-import { Skeleton } from "@/components/common/Skeleton";
 import { HistogramView } from "./HistogramView";
 import type { Histogram, Movie, TopGuess } from "./types";
+
+function formatCountdown(ms: number) {
+  const total = Math.max(0, ms);
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const h = Math.floor(total / 3600000);
+  const m = Math.floor((total % 3600000) / 60000);
+  const s = Math.floor((total % 60000) / 1000);
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+function splitTitle(full: string | null) {
+  if (!full) return { name: null, year: null };
+  const m = full.match(/^(.*) \((\d{4})\)$/);
+  return m ? { name: m[1], year: m[2] } : { name: full, year: null };
+}
 
 export function ResultsPanel({
   answer,
@@ -20,8 +34,6 @@ export function ResultsPanel({
   topGuesses,
   movies,
   posterUrl,
-  finalTitle,
-  devAnswer,
   stats,
   remainingMs,
   resultRef,
@@ -41,8 +53,6 @@ export function ResultsPanel({
   topGuesses: TopGuess[] | null;
   movies: Movie[];
   posterUrl: string | null;
-  finalTitle: string | null;
-  devAnswer: string | null;
   stats: DailyStats | null;
   remainingMs: number | null;
   resultRef: RefObject<HTMLDivElement>;
@@ -50,258 +60,161 @@ export function ResultsPanel({
   isArchive?: boolean;
   onPlayArchive?: () => void;
 }) {
+  const failed = !!answer;
+  const guessNo = revealIndexForCount(reveal) + 1;
+  const finalScore = score ?? 0;
+  const loadingAnswer = answer === "Loading answer...";
+  const { name, year } = splitTitle(loadingAnswer ? null : solutionTitle);
+  const answerKey = name ? normalizeTitle(name) : null;
+  const when = isArchive ? "" : " today";
+
+  const emojiLabels =
+    clues.length > 0
+      ? REVEAL_STEPS.map((end, i) => clues.slice(i === 0 ? 0 : REVEAL_STEPS[i - 1], end).join(""))
+      : undefined;
+
+  const total = hist ? hist.solves.reduce((a, b) => a + Number(b || 0), 0) + Number(hist.fail || 0) : 0;
   const selectedGuess = selectedReveal && selectedReveal > 0 ? revealIndexForCount(selectedReveal) + 1 : null;
-  const selectedRevealLabel = selectedGuess ? `guess ${selectedGuess}` : undefined;
-  const hasTitle = !!(finalTitle ?? answer ?? devAnswer ?? null);
-  const isLoadingPoster = hasTitle && movies.length === 0;
-  const emojiLabels = (() => {
-    if (!clues || clues.length === 0) return null;
-    const groups: string[] = [];
-    let prev = 0;
-    for (const step of REVEAL_STEPS) {
-      groups.push(clues.slice(prev, step).join(""));
-      prev = step;
-    }
-    return groups;
-  })();
 
   return (
-    <div className="card results-glass" style={{ marginTop: "1.25rem" }} tabIndex={-1} ref={resultRef} aria-label="Game results">
-      <div className="results-header-row">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {answer ? (
-            <>
-              <div className="status" aria-hidden="true">Answer: {solutionTitle ?? answer}</div>
-              <div className="sr-only" aria-live="assertive" aria-atomic="true">Answer: {solutionTitle ?? answer}</div>
-            </>
-          ) : (
-            <>
-              <div className="status success" aria-hidden="true">Correct!</div>
-              <div className="sr-only" aria-live="assertive" aria-atomic="true">Correct!</div>
-              {solutionTitle && (
+    <div className="results" tabIndex={-1} ref={resultRef} role="region" aria-label="Your result">
+      <section className="panel" aria-labelledby="result-heading">
+        <div className="panel-head">
+          <h2 id="result-heading">Your result</h2>
+          {isArchive ? <span className="panel-meta">Archive</span> : null}
+        </div>
+
+        <div className={`film${posterUrl ? "" : " no-poster"}`}>
+          {posterUrl ? (
+            <div className="poster" aria-hidden="true">
+              <img src={posterUrl} alt="" />
+            </div>
+          ) : null}
+          <div>
+            <p className="film-title" aria-live="polite">
+              {name ?? (failed ? "Loading the answer…" : "")}
+              {year ? <span className="film-year"> {year}</span> : null}
+            </p>
+            <p className="film-verdict">
+              {failed
+                ? `Not this time. All ${REVEAL_STEPS.length} guesses used.`
+                : `Solved on guess ${guessNo} of ${REVEAL_STEPS.length}, with ${Math.min(reveal, 10)} of 10 frames showing.`}
+            </p>
+          </div>
+        </div>
+
+        <dl className="figures">
+          <div className="figure is-lead">
+            <dt>Score</dt>
+            <dd>
+              {finalScore}
+              <small>/ 10</small>
+            </dd>
+          </div>
+          <div className="figure">
+            <dt>Better than</dt>
+            <dd>
+              {percentile !== null ? `${percentile}%` : "–"}
+              <small>of players{when}</small>
+            </dd>
+          </div>
+          <div className="figure" suppressHydrationWarning>
+            <dt>Current streak</dt>
+            <dd>
+              {stats?.currentStreak ?? 0}
+              <small>{(stats?.currentStreak ?? 0) === 1 ? "day" : "days"}</small>
+            </dd>
+          </div>
+          <div className="figure" suppressHydrationWarning>
+            <dt>Best streak</dt>
+            <dd>
+              {stats?.bestStreak ?? 0}
+              <small>{(stats?.bestStreak ?? 0) === 1 ? "day" : "days"}</small>
+            </dd>
+          </div>
+        </dl>
+
+        <div className="panel-foot">
+          {remainingMs !== null ? (
+            <p className="countdown" suppressHydrationWarning>
+              Next film in <strong>{formatCountdown(remainingMs)}</strong>
+            </p>
+          ) : null}
+          {onPlayArchive ? (
+            <button type="button" className="btn btn-quiet btn-wide" onClick={onPlayArchive}>
+              {isArchive ? "Choose another day" : "Play an earlier day"}
+            </button>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="panel" aria-labelledby="dist-heading">
+        <div className="panel-head">
+          <h2 id="dist-heading">How everyone did{when}</h2>
+          {hist ? <span className="panel-meta num">
+              {total} {total === 1 ? "player" : "players"}
+            </span> : null}
+        </div>
+
+        {!hist ? (
+          <div className="skeleton" style={{ height: 210 }} aria-hidden="true" />
+        ) : total === 0 ? (
+          <p className="popular-empty">No results yet. You are the first to finish.</p>
+        ) : (
+          <>
+            <HistogramView
+              histogram={hist}
+              myReveal={reveal}
+              failed={failed}
+              steps={REVEAL_STEPS}
+              selectedReveal={selectedReveal ?? undefined}
+              onSelect={onSelectReveal}
+              emojiLabels={emojiLabels}
+            />
+
+            <div className="popular" aria-live="polite">
+              {selectedReveal === 0 ? (
+                <h3>
+                  {hist.fail} {hist.fail === 1 ? "player" : "players"} missed it{when}
+                </h3>
+              ) : selectedGuess ? (
                 <>
-                  <div className="status" aria-hidden="true" style={{ marginTop: "0.5rem" }}>
-                    {isArchive ? "Answer" : "Today's answer"}: {solutionTitle}
-                  </div>
-                  <div className="sr-only" aria-live="polite" aria-atomic="true">
-                    {isArchive ? "Answer" : "Today's answer"}: {solutionTitle}
-                  </div>
-                </>
-              )}
-            </>
-          )}
-          <div style={{ marginTop: "0.875rem" }}>
-            {percentile !== null ? `You're better than ${percentile}% of players${isArchive ? "" : " today"}.` : ""}
-          </div>
-          {hist && answer && (
-            <div style={{ marginTop: "0.875rem", opacity: 0.85 }}>
-              {`You're not alone — ❌ ${hist.fail} failed${isArchive ? "" : " today"}.`}
-            </div>
-          )}
-          <div style={{ marginTop: "0.875rem", opacity: 0.8 }}>
-            Score: {score ?? (reveal < 10 ? 11 - reveal : 0)}
-          </div>
-        </div>
-        {(() => {
-          // Reserve poster area to avoid layout shift.
-          // Show skeleton while movie list loads and we know the title,
-          // then either render the poster or keep a neutral placeholder.
-          const posterBoxStyle = { width: 140, height: 210, borderRadius: 8, overflow: "hidden" as const };
-          return (
-            <div aria-hidden="true" className="results-poster" style={{ flex: "0 0 140px" }}>
-              {posterUrl ? (
-                <div style={{ ...posterBoxStyle, background: "rgba(255,255,255,0.06)" }}>
-                  <img src={posterUrl} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
-                </div>
-              ) : isLoadingPoster ? (
-                <Skeleton style={posterBoxStyle} />
-              ) : (
-                <div style={{ ...posterBoxStyle, background: "rgba(255,255,255,0.06)" }} />
-              )}
-            </div>
-          );
-        })()}
-      </div>
-      {/* Display the full emoji sequence - hidden on wide screens where histogram shows emoji */}
-      {clues && clues.length > 0 && (
-        <div 
-          className="results-emoji-grid"
-          aria-label={`Emoji clues: ${clues.join(" ")}`}
-        >
-          {clues.map((emoji, i) => (
-            <span key={i}>{emoji}</span>
-          ))}
-        </div>
-      )}
-      {hist ? (
-        (() => {
-          const total = hist.solves.reduce((a, b) => a + b, 0) + hist.fail;
-          if (total === 0) {
-            return (
-              <div style={{ marginTop: "1.25rem" }}>
-                <div className="status" style={{ opacity: 0.85 }}>Stats unavailable right now</div>
-              </div>
-            );
-          }
-          return (
-            <div style={{ marginTop: "1.25rem" }}>
-              <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
-                {isArchive ? "Distribution by guess" : "Today's distribution by guess"}
-              </div>
-              <HistogramView
-                histogram={hist}
-                myReveal={reveal}
-                failed={!!answer}
-                labels={REVEAL_STEPS.map((_, i) => String(i + 1))}
-                steps={REVEAL_STEPS}
-                selectedReveal={selectedReveal ?? undefined}
-                onSelect={onSelectReveal}
-                emojiLabels={emojiLabels ?? undefined}
-              />
-              {selectedReveal === 0 && (
-                <div style={{ marginTop: "1rem" }}>
-                  <div style={{ fontWeight: 600, marginBottom: 10 }}>❌ Failures</div>
-                  <div style={{ fontSize: 14, opacity: 0.95 }}>
-                    {hist.fail} players failed{isArchive ? "" : " today"}.
-                  </div>
-                </div>
-              )}
-              {selectedReveal !== null && selectedReveal !== 0 && (
-                <div style={{ marginTop: "1rem" }}>
-                  <div style={{ fontWeight: 600, marginBottom: 10, lineHeight: "1.2", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>Popular guesses after</span>
-                    <span>{selectedRevealLabel ?? selectedReveal}</span>
-                  </div>
+                  <h3>Most common answers on guess {selectedGuess}</h3>
                   {guessesLoading ? (
-                    <Skeleton variant="line" size="lg" style={{ width: 180, marginBottom: 8 }} />
+                    <div className="skeleton" style={{ height: 96 }} aria-hidden="true" />
                   ) : topGuesses && topGuesses.length > 0 ? (
-                    (() => {
-                      const items = topGuesses.slice(0, 10);
-                      const max = Math.max(1, ...items.map((g) => g.count));
-                      return items.map((g, i) => {
-                        const isSkip = g.key === "skip";
-                        const match = !isSkip ? movies.find((m) => normalizeTitle(m.title) === g.key) : null;
-                        const label = isSkip ? "Skipped" : match ? `${match.title}${match.year ? ` (${match.year})` : ""}` : g.key;
-                        const pct = Math.round((g.count / max) * 100);
-                        return (
-                          <div key={g.key + i} style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 14, opacity: isSkip ? 0.7 : 0.95, marginBottom: 6, fontStyle: isSkip ? "italic" : "normal" }}>
-                              {i + 1}. {label}
-                            </div>
-                            <div aria-label={`${g.count} ${isSkip ? "skips" : "guesses"}`} style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 6, overflow: "hidden" }}>
-                              <div style={{ width: `${pct}%`, height: "100%", background: isSkip ? "rgba(255,255,255,0.3)" : "var(--accent)", borderRadius: 6, opacity: 0.85 }} />
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()
+                    <ol className="popular-list">
+                      {(() => {
+                        const items = topGuesses.slice(0, 6);
+                        const max = Math.max(1, ...items.map((g) => g.count));
+                        return items.map((g) => {
+                          const isSkip = g.key === "skip";
+                          const match = isSkip ? null : movies.find((m) => normalizeTitle(m.title) === g.key);
+                          const label = isSkip ? "Skipped" : match ? match.title : g.key;
+                          return (
+                            <li
+                              key={g.key}
+                              className={`popular-row${g.key === answerKey ? " is-answer" : ""}`}
+                            >
+                              <span className={`popular-name${isSkip ? " is-skip" : ""}`}>{label}</span>
+                              <span className="popular-count">{g.count}</span>
+                              <span className="popular-track" aria-hidden="true">
+                                <span className="popular-fill" style={{ display: "block", width: `${(g.count / max) * 100}%` }} />
+                              </span>
+                            </li>
+                          );
+                        });
+                      })()}
+                    </ol>
                   ) : (
-                    <div style={{ fontSize: 14, opacity: 0.9 }}>No popular guesses yet.</div>
+                    <p className="popular-empty">Nobody has guessed at this point yet.</p>
                   )}
-                </div>
-              )}
-              <div style={{ opacity: 0.8, marginTop: "0.75rem" }}>
-                {isArchive ? `Total players: ${total}` : `Players today: ${total}`}
-              </div>
+                </>
+              ) : null}
             </div>
-          );
-        })()
-      ) : (
-        // Histogram skeleton placeholder to prevent layout shift
-        <div style={{ marginTop: "1.25rem" }}>
-          <Skeleton variant="line" size="lg" style={{ width: 220, marginBottom: 8 }} />
-          <Skeleton style={{ height: 170, borderRadius: 10 }} />
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${REVEAL_STEPS.length + 1}, 1fr)`, gap: "10px", marginTop: 10 }}>
-            {Array.from({ length: REVEAL_STEPS.length + 1 }).map((_, i) => (
-              <Skeleton key={i} variant="line" style={{ height: 28, borderRadius: 6 }} />
-            ))}
-          </div>
-        </div>
-      )}
-      {(() => {
-        const cur = stats ? stats.currentStreak ?? 0 : 0;
-        const best = stats ? stats.bestScore ?? 0 : 0;
-        const bestStreak = stats ? stats.bestStreak ?? 0 : 0;
-        const parts: string[] = [];
-        if (cur > 0) parts.push(`Streak: ${cur}`);
-        if (best > 0) parts.push(`Best score: ${best}`);
-        if (bestStreak > 0 && stats && bestStreak !== (stats.currentStreak ?? 0)) parts.push(`Best streak: ${bestStreak}`);
-        return parts.length > 0 ? (
-          <div style={{ marginTop: "1.25rem", opacity: 0.8 }} suppressHydrationWarning>
-            {parts.join(" • ")}
-          </div>
-        ) : null;
-      })()}
-      <div style={{ marginTop: "0.5rem", opacity: 0.8 }} suppressHydrationWarning>
-        {remainingMs !== null ? (
-          (() => {
-            const total = Math.max(0, remainingMs);
-            const h = Math.floor(total / 3600000);
-            const m = Math.floor((total % 3600000) / 60000);
-            const s = Math.floor((total % 60000) / 1000);
-            const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-            return `Next game in ${pad(h)}:${pad(m)}:${pad(s)}`;
-          })()
-        ) : null}
-      </div>
-
-      {/* Play Another Day invitation */}
-      {!isArchive && onPlayArchive && (
-        <div style={{ marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-          <button
-            type="button"
-            onClick={onPlayArchive}
-            style={{
-              width: "100%",
-              padding: "0.875rem 1rem",
-              background: "linear-gradient(135deg, rgba(124, 77, 255, 0.15), rgba(124, 77, 255, 0.08))",
-              border: "1px solid rgba(124, 77, 255, 0.3)",
-              borderRadius: "12px",
-              color: "var(--text)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.5rem",
-              fontSize: "0.95rem",
-              fontWeight: 500,
-              transition: "all 0.15s ease",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "linear-gradient(135deg, rgba(124, 77, 255, 0.25), rgba(124, 77, 255, 0.15))";
-              e.currentTarget.style.borderColor = "rgba(124, 77, 255, 0.5)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "linear-gradient(135deg, rgba(124, 77, 255, 0.15), rgba(124, 77, 255, 0.08))";
-              e.currentTarget.style.borderColor = "rgba(124, 77, 255, 0.3)";
-            }}
-          >
-            <span style={{ fontSize: "1.1rem" }}>🎬</span>
-            <span>Want more? Try an older puzzle!</span>
-          </button>
-        </div>
-      )}
-
-      {/* Return to today link for archive games */}
-      {isArchive && onPlayArchive && (
-        <div style={{ marginTop: "1rem", textAlign: "center" }}>
-          <button
-            type="button"
-            onClick={onPlayArchive}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--accent)",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              textDecoration: "underline",
-              textUnderlineOffset: "3px",
-            }}
-          >
-            ← Browse more puzzles
-          </button>
-        </div>
-      )}
+          </>
+        )}
+      </section>
     </div>
   );
 }
